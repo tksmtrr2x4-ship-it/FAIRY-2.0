@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "seed": "node dbSeed.js"
   },
   "dependencies": {
     "next": "16.2.9",
@@ -15,8 +16,10 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "autoprefixer": "^10.5.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
-    "tailwindcss": "^4"
+    "postcss": "^8.5.15",
+    "tailwindcss": "^4.3.1"
   }
 }
