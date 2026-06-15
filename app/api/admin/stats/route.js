@@ -1,31 +1,19 @@
 import dbConnect from '@/lib/dbConnect';
 import { NextResponse } from 'next/server';
 
-// Sicheres Laden des Modells im CommonJS-Format
 const Sale = require('@/models/Sale');
 
 export async function GET(req) {
   await dbConnect();
   try {
     const url = new URL(req.url);
-    const quarter = url.searchParams.get('quarter');
+    const quarter = url.searchParams.get('quarter'); // 'testphase', 'q1', 'q2'
     
     let query = { storno: false };
 
     if (quarter) {
-      const year = quarter.split('-')[0];
-      const q = quarter.split('-')[1];
-      let startMonth, endMonth;
-
-      if (q === 'Q1') { startMonth = '01'; endMonth = '03'; }
-      else if (q === 'Q2') { startMonth = '04'; endMonth = '06'; }
-      else if (q === 'Q3') { startMonth = '07'; endMonth = '09'; }
-      else { startMonth = '10'; endMonth = '12'; }
-
-      query.saleDate = { 
-        $gte: `${year}-${startMonth}-01`, 
-        $lte: `${year}-${endMonth}-31` 
-      };
+      // Abgleich anhand des hinterlegten Status-Labels
+      query.status = quarter;
     } else {
       const today = new Date().toISOString().split('T')[0];
       query.saleDate = today;

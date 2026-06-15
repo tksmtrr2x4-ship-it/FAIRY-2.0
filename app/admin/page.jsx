@@ -171,11 +171,15 @@ export default function AdminDashboard() {
             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{new Date().toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: 'short' })}</p>
           </div>
           <button onClick={handleLogout} className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-xl text-xs uppercase tracking-wider transition-all">Abmelden</button>
-          <select value={selectedQuarter} onChange={(e) => setSelectedQuarter(e.target.value)} className="bg-white border border-gray-200 px-4 py-2.5 rounded-2xl shadow-sm font-semibold text-gray-700 outline-none">
-            <option value="2025-Q4">4. Quartal 2025 (Altdaten)</option>
-            <option value="2026-Q1">1. Quartal 2026 (Altdaten)</option>
-            <option value="2026-Q2">2. Quartal 2026 (Aktuell)</option>
-          </select>
+          <select 
+  value={selectedQuarter} 
+  onChange={(e) => setSelectedQuarter(e.target.value)}
+  className="bg-white border border-gray-200 px-4 py-2.5 rounded-2xl shadow-sm font-semibold text-gray-700 outline-none"
+>
+  <option value="testphase">Testphase (15.12.25 - 31.01.26)</option>
+  <option value="q1">1. Quartal (Q1) (01.01.26 - 12.03.26)</option>
+  <option value="q2">2. Quartal (Q2) (12.03.26 - 11.06.26)</option>
+</select>
         </div>
       </header>
 
