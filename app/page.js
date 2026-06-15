@@ -12,15 +12,14 @@ export default function Home() {
       .catch(err => console.error(err));
   }, []);
 
-  // GORGEOUS APPLE MAINTENANCE SCREEN
   if (config.maintenanceActive) {
     return (
       <div className="min-h-screen bg-[#F5F5F7] flex flex-col items-center justify-center font-sans antialiased text-[#1D1D1F] p-6">
         <div className="max-w-md w-full text-center bg-white/70 backdrop-blur-xl border border-white/20 p-10 rounded-3xl shadow-xl flex flex-col items-center">
-          <div className="h-16 w-16 rounded-2xl bg-[#F2B600]/10 flex items-center justify-center mb-6 animate-pulse">
-            <span className="text-3xl text-[#F2B600]">🛠️</span>
+          <div className="h-16 w-16 rounded-2xl bg-[#D31329]/10 flex items-center justify-center mb-6 animate-pulse">
+            <span className="text-3xl text-[#D31329]">🛠️</span>
           </div>
-          <h2 className="text-2xl font-extrabold text-[#0B2F5C] tracking-tight">Systemaktualisierung läuft</h2>
+          <h2 className="text-2xl font-extrabold text-[#D31329] tracking-tight">Systemaktualisierung läuft</h2>
           <p className="text-sm text-gray-500 font-medium mt-4 leading-relaxed">
             Der Weltladen St. Ursula führt gerade ein System-Update oder Wartungsarbeiten durch. Wir sind in wenigen Minuten wieder für dich da!
           </p>
@@ -32,25 +31,37 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F5F7] flex flex-col items-center justify-center font-sans">
-      <div className="bg-white/80 backdrop-blur-md p-10 rounded-3xl shadow-xl max-w-md w-full text-center border border-white/20">
-        <h1 className="text-3xl font-extrabold text-[#0B2F5C] mb-2 tracking-tight">Weltladen St. Ursula</h1>
-        <p className="text-gray-500 text-sm mb-8 font-semibold uppercase tracking-wider">Kassensystem & Administration</p>
+    <div className="min-h-screen bg-[#F5F5F7] flex flex-col items-center justify-center font-sans antialiased text-[#1D1D1F]">
+      <div className="bg-white/80 backdrop-blur-xl p-10 rounded-3xl shadow-xl max-w-md w-full text-center border border-white/20 flex flex-col items-center">
+        {/* Logo Integration */}
+        <img 
+          src="/logo.png" 
+          alt="St. Ursula Schulen Villingen" 
+          className="h-20 w-auto object-contain mb-6 rounded-lg"
+          onError={(e) => { e.target.style.display = 'none'; }}
+        />
+        <h1 className="text-3xl font-extrabold text-[#D31329] mb-2 tracking-tight">Weltladen St. Ursula</h1>
+        <p className="text-gray-400 text-xs mb-8 font-bold uppercase tracking-wider">Kassensystem & Administration</p>
         
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 w-full">
           <Link 
             href="/pos" 
-            className="w-full py-4 bg-[#0B2F5C] hover:bg-[#153e63] text-white font-bold rounded-2xl transition-all shadow-md text-center hover:scale-[1.02] active:scale-[0.98]"
+            className="w-full py-4 bg-[#D31329] hover:bg-[#b01020] text-white font-bold rounded-2xl transition-all shadow-md text-center hover:scale-[1.02] active:scale-[0.98]"
           >
             Kasse öffnen (Verkauf)
           </Link>
           <Link 
             href="/admin" 
-            className="w-full py-4 bg-[#F2B600] hover:bg-[#d49e1e] text-white font-bold rounded-2xl transition-all shadow-md text-center hover:scale-[1.02] active:scale-[0.98]"
+            className="w-full py-4 bg-[#8E8E93] hover:bg-[#737377] text-white font-bold rounded-2xl transition-all shadow-md text-center hover:scale-[1.02] active:scale-[0.98]"
           >
             Admin-Dashboard
           </Link>
         </div>
+      </div>
+      
+      {/* Copyright Footer */}
+      <div className="absolute bottom-6 text-center text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+        © 2026 Schülerfirma Weltladen St. Ursula Villingen. Alle Rechte vorbehalten für Jill Manuel Hils.
       </div>
     </div>
   );
