@@ -66,12 +66,14 @@ const initialProducts = [
 
 export async function GET() {
   await dbConnect();
-  const Product = mongoose.models.Product; // Direkt aus Mongoose geladen!
+  const Product = mongoose.models.Product;
   try {
-    let products = await Product.find({ active: true }).sort({ nr: 1 });
+    // Defensiv-Suche: Findet alle Produkte, die nicht ausdrücklich gelöscht wurden ($ne: false)
+    let products = await Product.find({ active: { $ne: false } }).sort({ nr: 1 });
+    
     if (products.length === 0) {
       await Product.insertMany(initialProducts);
-      products = await Product.find({ active: true }).sort({ nr: 1 });
+      products = await Product.find({ active: { $ne: false } }).sort({ nr: 1 });
     }
     return NextResponse.json({ products });
   } catch (error) {
@@ -81,7 +83,7 @@ export async function GET() {
 
 export async function POST(req) {
   await dbConnect();
-  const Product = mongoose.models.Product; // Direkt aus Mongoose geladen!
+  const Product = mongoose.models.Product;
   try {
     const body = await req.json();
     const { name, group, basePrice, vatRate } = body;
