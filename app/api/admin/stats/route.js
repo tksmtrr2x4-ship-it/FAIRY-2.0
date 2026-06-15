@@ -8,14 +8,15 @@ export async function GET(req) {
   try {
     const url = new URL(req.url);
     const quarter = url.searchParams.get('quarter'); // 'testphase', 'q1', 'q2'
+    const dateParam = url.searchParams.get('date');  // Lokales Datum im Format YYYY-MM-DD
     
     let query = { storno: false };
 
     if (quarter) {
-      // Abgleich anhand des hinterlegten Status-Labels
       query.status = quarter;
     } else {
-      const today = new Date().toISOString().split('T')[0];
+      // Priorisiert das deutsche Datum des Kassen-Browsers (verhindert Vercel-USA-Zeitzonen-Fehler)
+      const today = dateParam || new Date().toISOString().split('T')[0];
       query.saleDate = today;
       query.status = 'active';
     }
