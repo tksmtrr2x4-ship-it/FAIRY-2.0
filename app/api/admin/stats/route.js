@@ -2,12 +2,13 @@ import dbConnect from '@/lib/dbConnect';
 import mongoose from 'mongoose';
 import { NextResponse } from 'next/server';
 
+const Sale = mongoose.models.Sale;
+
 export async function GET(req) {
   try {
     await dbConnect();
-    const Sale = mongoose.models.Sale;
     const url = new URL(req.url);
-    const quarter = url.searchParams.get('quarter');
+    const quarter = url.searchParams.get('quarter'); // 'testphase', 'q1', 'q2'
     const dateParam = url.searchParams.get('date');
     
     let query = { storno: false };
@@ -18,7 +19,8 @@ export async function GET(req) {
       } else if (quarter === 'q1') {
         query.saleDate = { $gte: '2026-01-01', $lte: '2026-03-12' };
       } else if (quarter === 'q2') {
-        query.saleDate = { $gte: '2026-03-13', $lte: '2026-06-11' };
+        // Q2 bis zum Ende des Schuljahres verlängert, um Live-Käufe zu erfassen
+        query.saleDate = { $gte: '2026-03-13', $lte: '2026-08-31' };
       }
     } else {
       const today = dateParam || new Date().toISOString().split('T')[0];

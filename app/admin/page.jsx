@@ -13,7 +13,7 @@ export default function AdminDashboard() {
   const [salesJournal, setSalesJournal] = useState([]);
   const [selectedQuarter, setSelectedQuarter] = useState('q2');
   const [liveTime, setLiveTime] = useState('');
-  const [liveDate, setLiveDate] = useState(''); // <--- Hydrations-sicherer State!
+  const [liveDate, setLiveDate] = useState('');
 
   // System-Config States
   const [bannerActive, setBannerActive] = useState(false);
@@ -40,7 +40,6 @@ export default function AdminDashboard() {
     setIsAuthenticated(false);
   };
 
-  // Live-Uhrzeit & Datum absolut hydrations-sicher initialisieren
   useEffect(() => {
     if (!isAuthenticated) return;
     const updateClock = () => {
@@ -140,6 +139,23 @@ export default function AdminDashboard() {
     if (res.ok) loadData();
   };
 
+  // BUCHHALTUNGS-FILTER: Synchronisiert das Journal in Echtzeit mit den Kacheln
+  const getFilteredSales = () => {
+    return salesJournal.filter(sale => {
+      const date = sale.saleDate;
+      if (selectedQuarter === 'testphase') {
+        return date >= '2025-12-15' && date <= '2025-12-31';
+      }
+      if (selectedQuarter === 'q1') {
+        return date >= '2026-01-01' && date <= '2026-03-12';
+      }
+      if (selectedQuarter === 'q2') {
+        return date >= '2026-03-13' && date <= '2026-08-31'; // Erfasst alle Live-Umsätze!
+      }
+      return true;
+    });
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-[#F5F5F7] flex flex-col items-center justify-center font-sans">
@@ -174,9 +190,9 @@ export default function AdminDashboard() {
           </div>
           <button onClick={handleLogout} className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-xl text-xs uppercase tracking-wider transition-all">Abmelden</button>
           <select value={selectedQuarter} onChange={(e) => setSelectedQuarter(e.target.value)} className="bg-white border border-gray-200 px-4 py-2.5 rounded-2xl shadow-sm font-semibold text-gray-700 outline-none">
-            <option value="testphase">Testphase (15.12.25 - 31.01.26)</option>
+            <option value="testphase">Testphase (15.12.25 - 31.12.25)</option>
             <option value="q1">1. Quartal (Q1) (01.01.26 - 12.03.26)</option>
-            <option value="q2">2. Quartal (Q2) (12.03.26 - 11.06.26)</option>
+            <option value="q2">2. Quartal (Q2) (13.03.26 - 31.08.26)</option>
           </select>
         </div>
       </header>
@@ -203,7 +219,7 @@ export default function AdminDashboard() {
           </div>
         </section>
 
-        {/* SYSTEMSTEUERUNG (BANNER & WARTUNGSMODUS) */}
+        {/* SYSTEMSTEUERUNG */}
         <section className="col-span-6 bg-white p-6 rounded-3xl border border-gray-200/50 shadow-sm h-[380px] flex flex-col justify-between">
           <h2 className="text-lg font-bold text-[#0B2F5C]">Kassensystem konfigurieren</h2>
           <form onSubmit={handleSaveConfig} className="flex flex-col gap-4 mt-4 h-full justify-between">
@@ -254,14 +270,15 @@ export default function AdminDashboard() {
           </div>
         </section>
 
-        {/* Transaktionsjournal */}
+        {/* Transaktionsjournal (DYNAMISCH SYNCHRONISIERT) */}
         <section className="col-span-12 bg-white p-6 rounded-3xl border border-gray-200/50 shadow-sm">
           <h2 className="text-lg font-bold text-[#0B2F5C] mb-4">Transaktionsjournal</h2>
+          <p className="text-xs text-gray-400 mb-6 font-medium">Zeigt genau die Belege an, die zum oben ausgewählten Abrechnungszeitraum gehören.</p>
           <div className="overflow-y-auto max-h-96">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b text-xs text-gray-400 uppercase tracking-wider font-bold">
-                  <th className="py-3">Datum & Uhrzeit</th>
+                  <th className="py-3">Abrechnungsdatum</th>
                   <th>Bon-ID</th>
                   <th>Artikel</th>
                   <th>Status</th>
@@ -270,9 +287,9 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {salesJournal.map((sale) => (
+                {getFilteredSales().map((sale) => (
                   <tr key={sale._id} className={`border-b text-sm ${sale.storno ? 'bg-red-50/30 line-through text-gray-400' : ''}`}>
-                    <td className="py-3 font-mono text-xs">{new Date(sale.createdAt).toLocaleString('de-DE')}</td>
+                    <td className="py-3 font-mono text-xs">{sale.saleDate} • {new Date(sale.createdAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr</td>
                     <td className="font-mono text-xs text-gray-400">{sale._id.slice(-6).toUpperCase()}</td>
                     <td>
                       <div className="flex flex-col gap-1">
@@ -303,6 +320,11 @@ export default function AdminDashboard() {
                     </td>
                   </tr>
                 ))}
+                {getFilteredSales().length === 0 && (
+                  <tr>
+                    <td colSpan="6" className="text-center py-12 text-gray-400">Keine Transaktionen in diesem Zeitraum gefunden</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
