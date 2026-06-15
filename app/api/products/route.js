@@ -1,6 +1,9 @@
 import dbConnect from '@/lib/dbConnect';
-import Product from '@/models/Product';
+import ProductModel from '@/models/Product';
 import { NextResponse } from 'next/server';
+
+// Sicheres Entpacken des Mongoose-Modells für Next.js / Turbopack
+const Product = ProductModel.default || ProductModel;
 
 // Die originalen Daten aus dem PDF-Register
 const initialProducts = [
@@ -66,24 +69,17 @@ const initialProducts = [
 export async function GET() {
   await dbConnect();
   try {
-    // 1. Suche nach allen aktiven Produkten in der Datenbank
     let products = await Product.find({ active: true }).sort({ nr: 1 });
-
-    // 2. AUTOMATISCHES ERST-SEEDING: Wenn die DB leer ist, füttern wir sie sofort mit dem PDF-Stand
     if (products.length === 0) {
-      console.log("Datenbank ist leer. Speise automatische PDF-Produkte ein...");
       await Product.insertMany(initialProducts);
-      // Erneut abfragen, um die gerade geschriebenen Daten zurückzugeben
       products = await Product.find({ active: true }).sort({ nr: 1 });
     }
-
     return NextResponse.json({ products });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// 3. Ein neues Produkt manuell über das Dashboard hinzufügen
 export async function POST(req) {
   await dbConnect();
   try {

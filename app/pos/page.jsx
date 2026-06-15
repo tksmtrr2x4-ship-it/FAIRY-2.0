@@ -1,3 +1,4 @@
+// app/pos/page.jsx
 'use client';
 import React, { useState, useEffect } from 'react';
 
@@ -8,6 +9,9 @@ export default function PosInterface() {
   const [lastSaleId, setLastSaleId] = useState(null);
   const [liveTime, setLiveTime] = useState('');
   
+  // Apple Toast Notification State
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+
   // Banner State
   const [banner, setBanner] = useState({ active: false, message: '' });
 
@@ -27,6 +31,14 @@ export default function PosInterface() {
     const interval = setInterval(updateClock, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // Helfer für edle Apple-Benachrichtigungen
+  const triggerToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => {
+      setToast(prev => ({ ...prev, show: false }));
+    }, 3000); // Blendet sich nach 3 Sekunden automatisch aus
+  };
 
   // Produkte und Aktionsbanner laden
   const loadData = () => {
@@ -87,13 +99,13 @@ export default function PosInterface() {
       if (data.success) {
         setLastSaleId(data.sale._id);
         setCart([]);
-        alert("Einkauf erfolgreich gebucht!");
+        triggerToast("Einkauf erfolgreich gebucht!", "success");
       } else {
-        alert("Fehler beim Speichern des Umsatzes: " + (data.error || "Unbekannt"));
+        triggerToast("Datenbankfehler beim Speichern: " + (data.error || "Unbekannt"), "error");
       }
     } catch (err) {
       console.error(err);
-      alert("Netzwerkfehler beim Buchen.");
+      triggerToast("Verbindungsfehler zur Datenbank.", "error");
     }
   };
 
@@ -106,7 +118,7 @@ export default function PosInterface() {
     });
     const data = await res.json();
     if (data.success) {
-      alert("Letzter Verkauf wurde erfolgreich storniert!");
+      triggerToast("Letzter Verkauf storniert!", "success");
       setLastSaleId(null);
     }
   };
@@ -152,7 +164,7 @@ export default function PosInterface() {
       const data = await res.json();
       if (data.success) {
         setShowReportModal(false);
-        alert(`${reportTitle} erfolgreich archiviert!`);
+        triggerToast(`${reportTitle} archiviert!`, "success");
       }
     } catch (err) {
       console.error(err);
@@ -323,6 +335,18 @@ export default function PosInterface() {
               <button onClick={() => window.print()} className="w-full py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold rounded-xl text-xs uppercase tracking-wider transition-all">Bericht drucken</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* GORGEOUS APPLE TOAST NOTIFICATION */}
+      {toast.show && (
+        <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl backdrop-blur-md border transition-all duration-500 ${
+          toast.type === 'success' 
+            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-800' 
+            : 'bg-red-500/10 border-red-500/20 text-red-800'
+        }`}>
+          <span className="text-lg">{toast.type === 'success' ? '✅' : '❌'}</span>
+          <span className="text-sm font-bold tracking-wide">{toast.message}</span>
         </div>
       )}
     </div>
