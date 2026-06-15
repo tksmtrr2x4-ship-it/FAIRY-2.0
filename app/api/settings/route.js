@@ -2,16 +2,10 @@ import dbConnect from '@/lib/dbConnect';
 import mongoose from 'mongoose';
 import { NextResponse } from 'next/server';
 
-const SettingsSchema = new mongoose.Schema({
-  key: { type: String, required: true, unique: true },
-  value: { type: mongoose.Schema.Types.Mixed, required: true }
-});
-
-const Settings = mongoose.models.Settings || mongoose.model('Settings', SettingsSchema);
-
 export async function GET() {
-  await dbConnect();
   try {
+    await dbConnect();
+    const Settings = mongoose.models.Settings;
     let config = await Settings.findOne({ key: 'siteConfig' });
     if (!config) {
       config = new Settings({ 
@@ -27,8 +21,9 @@ export async function GET() {
 }
 
 export async function POST(req) {
-  await dbConnect();
   try {
+    await dbConnect();
+    const Settings = mongoose.models.Settings;
     const body = await req.json();
     const { bannerActive, bannerMessage, maintenanceActive } = body;
 

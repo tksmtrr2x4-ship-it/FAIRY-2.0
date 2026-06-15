@@ -3,11 +3,11 @@ import mongoose from 'mongoose';
 import { NextResponse } from 'next/server';
 
 export async function GET(req) {
-  await dbConnect();
-  const Sale = mongoose.models.Sale; // Direkt aus Mongoose geladen!
   try {
+    await dbConnect();
+    const Sale = mongoose.models.Sale;
     const url = new URL(req.url);
-    const quarter = url.searchParams.get('quarter'); // 'testphase', 'q1', 'q2'
+    const quarter = url.searchParams.get('quarter');
     const dateParam = url.searchParams.get('date');
     
     let query = { storno: false };

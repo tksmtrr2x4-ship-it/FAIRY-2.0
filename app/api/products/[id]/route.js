@@ -3,9 +3,9 @@ import mongoose from 'mongoose';
 import { NextResponse } from 'next/server';
 
 export async function PUT(req, { params }) {
-  await dbConnect();
-  const Product = mongoose.models.Product; // Direkt aus Mongoose geladen!
   try {
+    await dbConnect();
+    const Product = mongoose.models.Product;
     const { id } = params;
     const { price, name, group, vatRate } = await req.json();
 
@@ -23,9 +23,9 @@ export async function PUT(req, { params }) {
 }
 
 export async function DELETE(req, { params }) {
-  await dbConnect();
-  const Product = mongoose.models.Product; // Direkt aus Mongoose geladen!
   try {
+    await dbConnect();
+    const Product = mongoose.models.Product;
     const { id } = params;
     const deletedProduct = await Product.findByIdAndUpdate(id, { active: false }, { new: true });
     return NextResponse.json({ success: true, product: deletedProduct });

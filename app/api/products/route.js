@@ -2,8 +2,6 @@ import dbConnect from '@/lib/dbConnect';
 import mongoose from 'mongoose';
 import { NextResponse } from 'next/server';
 
-const Product = mongoose.models.Product;
-
 const initialProducts = [
   { nr: 1, name: "Himbeeren", group: "Unverpackt; Lebensmittel", basePrice: 2.50, vatRate: 7 },
   { nr: 2, name: "Studentenfutter", group: "Unverpackt; Lebensmittel", basePrice: 1.00, vatRate: 7 },
@@ -50,7 +48,7 @@ const initialProducts = [
   { nr: 43, name: "Klebestift", group: "Schreibwaren", basePrice: 2.00, vatRate: 19 },
   { nr: 44, name: "Korrekturroller", group: "Schreibwaren", basePrice: 3.50, vatRate: 19 },
   { nr: 45, name: "Kerze", group: "Sonstige", basePrice: 6.00, vatRate: 19 },
-  { nr: 59, name: "Cup StU", group: "Sonstige", basePrice: 1.50, vatRate: 19 }, // KORRIGIERT: Nr. 59 (Cup StU)
+  { nr: 59, name: "Cup StU", group: "Sonstige", basePrice: 1.50, vatRate: 19 },
   { nr: 46, name: "Vesperdose", group: "Sonstige", basePrice: 10.00, vatRate: 19 },
   { nr: 47, name: "Glaspfand-Einnahme", group: "Sonstige", basePrice: 1.00, vatRate: 19 },
   { nr: 48, name: "Flaschen Pfand-Einnahme (Limo & Seezüngle)", group: "Sonstige", basePrice: 0.20, vatRate: 19 },
@@ -59,16 +57,16 @@ const initialProducts = [
   { nr: 51, name: "Porridge (3 Toppings)", group: "Lebensmittel", basePrice: 1.50, vatRate: 7 },
   { nr: 52, name: "Nikolaus", group: "Lebensmittel", basePrice: 2.80, vatRate: 7 },
   { nr: 53, name: "Limo", group: "Lebensmittel", basePrice: 1.50, vatRate: 19 },
-  { nr: 60, name: "College-Block (80 Blatt)", group: "Schreibwaren", basePrice: 1.50, vatRate: 19 }, // KORRIGIERT: Nr. 60 (College-Block)
-  { nr: 61, name: "Crossita", group: "Lebensmittel", basePrice: 1.50, vatRate: 7 }, // KORRIGIERT: Nr. 61 (Crossita)
-  { nr: 62, name: "Mandel Tonka", group: "Lebensmittel", basePrice: 1.00, vatRate: 7 }, // KORRIGIERT: Nr. 62 (Mandel Tonka)
-  { nr: 63, name: "Fair Bite", group: "Lebensmittel", basePrice: 1.60, vatRate: 7 } // KORRIGIERT: Nr. 63 (Fair Bite)
+  { nr: 60, name: "College-Block (80 Blatt)", group: "Schreibwaren", basePrice: 1.50, vatRate: 19 },
+  { nr: 61, name: "Crossita", group: "Lebensmittel", basePrice: 1.50, vatRate: 7 },
+  { nr: 62, name: "Mandel Tonka", group: "Lebensmittel", basePrice: 1.00, vatRate: 7 },
+  { nr: 63, name: "Fair Bite", group: "Lebensmittel", basePrice: 1.60, vatRate: 7 }
 ];
 
 export async function GET() {
-  await dbConnect();
-  const Product = mongoose.models.Product;
   try {
+    await dbConnect(); // Sichert die Verbindung im try-catch
+    const Product = mongoose.models.Product;
     let products = await Product.find({ active: { $ne: false } }).sort({ nr: 1 });
     
     if (products.length === 0) {
@@ -82,9 +80,9 @@ export async function GET() {
 }
 
 export async function POST(req) {
-  await dbConnect();
-  const Product = mongoose.models.Product;
   try {
+    await dbConnect();
+    const Product = mongoose.models.Product;
     const body = await req.json();
     const { name, group, basePrice, vatRate } = body;
 
