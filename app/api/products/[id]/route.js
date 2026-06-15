@@ -1,9 +1,8 @@
 import dbConnect from '@/lib/dbConnect';
-import '@/models/Product'; // Registriert das Modell global in Mongoose
-import mongoose from 'mongoose';
 import { NextResponse } from 'next/server';
 
-const Product = mongoose.model('Product');
+// Sicheres Laden des Modells im CommonJS-Format
+const Product = require('@/models/Product');
 
 export async function PUT(req, { params }) {
   await dbConnect();

@@ -1,14 +1,38 @@
 import dbConnect from '@/lib/dbConnect';
-import Sale from '@/models/Sale';
 import { NextResponse } from 'next/server';
 
-export async function GET() {
+// Sicheres Laden des Modells im CommonJS-Format
+const Sale = require('@/models/Sale');
+
+export async function GET(req) {
   await dbConnect();
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const url = new URL(req.url);
+    const quarter = url.searchParams.get('quarter');
     
-    // Wir filtern nur die heutigen Verkäufe, die aktiv und nicht storniert sind
-    const sales = await Sale.find({ saleDate: today, status: 'active', storno: false });
+    let query = { storno: false };
+
+    if (quarter) {
+      const year = quarter.split('-')[0];
+      const q = quarter.split('-')[1];
+      let startMonth, endMonth;
+
+      if (q === 'Q1') { startMonth = '01'; endMonth = '03'; }
+      else if (q === 'Q2') { startMonth = '04'; endMonth = '06'; }
+      else if (q === 'Q3') { startMonth = '07'; endMonth = '09'; }
+      else { startMonth = '10'; endMonth = '12'; }
+
+      query.saleDate = { 
+        $gte: `${year}-${startMonth}-01`, 
+        $lte: `${year}-${endMonth}-31` 
+      };
+    } else {
+      const today = new Date().toISOString().split('T')[0];
+      query.saleDate = today;
+      query.status = 'active';
+    }
+
+    const sales = await Sale.find(query);
     
     let totalRevenue = 0;
     let totalNetto = 0;
