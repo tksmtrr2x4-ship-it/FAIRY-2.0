@@ -8,21 +8,15 @@ export default function PosInterface() {
   const [cart, setCart] = useState([]);
   const [lastSaleId, setLastSaleId] = useState(null);
   const [liveTime, setLiveTime] = useState('');
-  const [liveDate, setLiveDate] = useState(''); // <--- Hydrations-sicherer State!
-
-  // Apple Toast Notification State
+  const [liveDate, setLiveDate] = useState('');
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
-
-  // System-Konfigurationen
   const [config, setConfig] = useState({ bannerActive: false, bannerMessage: '', maintenanceActive: false });
 
-  // States für den Bericht
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportTitle, setReportTitle] = useState('');
   const [pendingPhase, setPendingPhase] = useState('');
   const [reportData, setReportData] = useState({ brutto: 0, netto: 0, vat7: 0, vat19: 0, pfand: 0, count: 0 });
 
-  // Live-Uhrzeit & Datum absolut hydrations-sicher initialisieren
   useEffect(() => {
     const updateClock = () => {
       const now = new Date();
@@ -72,6 +66,7 @@ export default function PosInterface() {
 
   const handleCheckout = async () => {
     if (cart.length === 0) return;
+    const localDateString = new Date().toLocaleDateString('sv-SE'); 
 
     const formattedItems = cart.map(item => ({
       productId: item.id,
@@ -85,7 +80,11 @@ export default function PosInterface() {
       const res = await fetch('/api/sales', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'CHECKOUT', items: formattedItems })
+        body: JSON.stringify({ 
+          action: 'CHECKOUT', 
+          items: formattedItems,
+          localDate: localDateString
+        })
       });
       const data = await res.json();
       
@@ -94,10 +93,9 @@ export default function PosInterface() {
         setCart([]);
         triggerToast("Einkauf erfolgreich gebucht!", "success");
       } else {
-        triggerToast("Fehler beim Speichern: " + (data.error || "Datenbankfehler"), "error");
+        triggerToast("Datenbankfehler: " + (data.error || "Unbekannt"), "error");
       }
     } catch (err) {
-      console.error(err);
       triggerToast("Verbindungsfehler zur Datenbank.", "error");
     }
   };
@@ -121,8 +119,10 @@ export default function PosInterface() {
     setPendingPhase(phase);
     setReportTitle(titles[phase]);
 
+    const localDateString = new Date().toLocaleDateString('sv-SE');
+
     try {
-      const res = await fetch('/api/admin/stats');
+      const res = await fetch(`/api/admin/stats?date=${localDateString}`);
       const data = await res.json();
       if (data.success && data.summary) {
         setReportData({
@@ -143,12 +143,18 @@ export default function PosInterface() {
     }
   };
 
+  // SCHNITT (CUT) MIT LOKALEM DATUM ABSICHERN
   const confirmReport = async () => {
+    const localDateString = new Date().toLocaleDateString('sv-SE');
     try {
       const res = await fetch('/api/sales', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'UPDATE_STATUS', statusType: pendingPhase })
+        body: JSON.stringify({ 
+          action: 'UPDATE_STATUS', 
+          statusType: pendingPhase,
+          localDate: localDateString // <--- Verhindert Zeitzonen-Konflikte beim Schnitt
+        })
       });
       const data = await res.json();
       if (data.success) {
@@ -182,7 +188,6 @@ export default function PosInterface() {
 
   return (
     <div className="min-h-screen bg-[#F5F5F7] text-[#1D1D1F] font-sans antialiased flex flex-col selection:bg-[#0B2F5C] selection:text-white">
-      {/* Header */}
       <header className="sticky top-0 z-40 backdrop-blur-md bg-white/75 border-b border-gray-200/50 px-8 py-4 flex justify-between items-center">
         <div className="flex items-center gap-6">
           <div>
@@ -327,7 +332,6 @@ export default function PosInterface() {
         </div>
       )}
 
-      {/* GORGEOUS APPLE TOAST NOTIFICATION */}
       {toast.show && (
         <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl backdrop-blur-md border ${
           toast.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-800' : 'bg-red-500/10 border-red-500/20 text-red-800'

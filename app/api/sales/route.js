@@ -1,9 +1,9 @@
 import dbConnect from '@/lib/dbConnect';
-import '@/models/Sale'; // Registriert das Modell global in Mongoose
-import mongoose from 'mongoose';
 import { NextResponse } from 'next/server';
 
-const Sale = mongoose.model('Sale');
+// Sicheres Laden beider Modelle zur Vermeidung von Schema-Konflikten
+require('@/models/Product');
+const Sale = require('@/models/Sale');
 
 export async function GET() {
   await dbConnect();
@@ -19,11 +19,11 @@ export async function POST(req) {
   await dbConnect();
   try {
     const body = await req.json();
-    const { action, saleId, items, statusType } = body;
+    const { action, saleId, items, statusType, localDate } = body;
 
     // 1. KAUF ABSCHLIESSEN (Dauerhaft in MongoDB buchen)
     if (action === 'CHECKOUT') {
-      const today = new Date().toISOString().split('T')[0];
+      const saleDate = localDate || new Date().toISOString().split('T')[0];
       
       let totalBrutto = 0;
       let totalNetto = 0;
@@ -55,7 +55,7 @@ export async function POST(req) {
         totalBrutto: Math.round(totalBrutto * 100) / 100,
         totalNetto: Math.round(totalNetto * 100) / 100,
         totalVat: Math.round(totalVat * 100) / 100,
-        saleDate: today,
+        saleDate: saleDate,
         status: 'active',
         storno: false
       });
@@ -74,13 +74,16 @@ export async function POST(req) {
       return NextResponse.json({ success: true, sale: updatedSale });
     }
 
-    // 3. PAUSENSCHLUSS / KASSENSCHLUSS
+    // 3. STATUS-UPDATE (PAUSENARCHIVIERUNG)
     if (action === 'UPDATE_STATUS') {
-      const today = new Date().toISOString().split('T')[0];
+      const today = localDate || new Date().toISOString().split('T')[0];
+      
+      // Archiviert alle noch offenen Verkäufe des heutigen Tages
       await Sale.updateMany(
         { saleDate: today, status: 'active', storno: false },
         { $set: { status: statusType } }
       );
+
       return NextResponse.json({ success: true });
     }
 
