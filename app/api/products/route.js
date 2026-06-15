@@ -2,6 +2,7 @@ import dbConnect from '@/lib/dbConnect';
 import mongoose from 'mongoose';
 import { NextResponse } from 'next/server';
 
+// Initialisierungsdaten der Produkte
 const initialProducts = [
   { nr: 1, name: "Himbeeren", group: "Unverpackt; Lebensmittel", basePrice: 2.50, vatRate: 7 },
   { nr: 2, name: "Studentenfutter", group: "Unverpackt; Lebensmittel", basePrice: 1.00, vatRate: 7 },
@@ -63,16 +64,99 @@ const initialProducts = [
   { nr: 63, name: "Fair Bite", group: "Lebensmittel", basePrice: 1.60, vatRate: 7 }
 ];
 
+// Historische Altdaten-Umsätze
+const testphaseQuantities = { 3: 2, 4: 9, 6: 1, 7: 1, 12: 33, 13: 4, 14: 11, 15: 16, 16: 76, 17: 150, 18: 13, 19: 20, 21: 103, 24: 10, 25: 33, 26: 3, 27: 1, 28: 13, 29: 7, 33: 1, 34: 27, 35: 9, 36: 6, 37: 1, 38: 2, 41: 6, 45: 3, 59: 3, 46: 2, 47: 16, 48: 16, 49: -22, 50: -23, 51: 2, 53: 37, 60: 5, 56: 3 };
+const q1Quantities = { 1: 13, 2: 1, 3: 2, 4: 2, 7: 4, 10: 1, 12: 37, 13: 9, 14: 32, 16: 17, 17: 78, 18: 4, 19: 25, 21: 12, 24: 22, 25: 45, 28: 45, 29: 4, 34: 33, 35: 9, 36: 4, 41: 1, 59: 1, 47: 22, 48: 103, 49: -32, 50: -78, 53: 54, 60: 4, 56: 7 };
+const q2Quantities = { 2: 11, 4: 11, 5: 1, 6: 41, 7: 16, 8: 32, 9: 233, 10: 13, 12: 104, 13: 3, 15: 7, 16: 17, 17: 28, 21: 28, 22: 1, 25: 1, 26: 34, 27: 18, 28: 1, 30: 1, 33: 1, 40: 32, 41: 45, 42: 27, 43: 10, 45: 41, 46: 4, 47: 3, 48: 2 };
+
+function getSchoolDays(startDate, daysCount) {
+  const days = [];
+  let current = new Date(startDate);
+  while (days.length < daysCount) {
+    const dayOfWeek = current.getDay();
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) days.push(current.toISOString().split('T')[0]);
+    current.setDate(current.getDate() + 1);
+  }
+  return days;
+}
+
 export async function GET() {
   try {
-    await dbConnect(); // Sichert die Verbindung im try-catch
+    await dbConnect();
     const Product = mongoose.models.Product;
+    const Sale = mongoose.models.Sale;
+
     let products = await Product.find({ active: { $ne: false } }).sort({ nr: 1 });
     
+    // 1. Erst-Seeding der Produkte, falls leer
     if (products.length === 0) {
       await Product.insertMany(initialProducts);
       products = await Product.find({ active: { $ne: false } }).sort({ nr: 1 });
     }
+
+    // 2. VOLLAUTOMATISCHER SEEDER FÜR ALTDATEN: Speist die Verkäufe der PDFs bei der ersten Nutzung sofort in Atlas ein!
+    const salesCount = await Sale.countDocuments({});
+    if (salesCount === 0) {
+      console.log("Speise historische PDF-Verkäufe vollautomatisch ein...");
+      const prodMap = {};
+      products.forEach(p => { prodMap[p.nr] = p; });
+
+      // Seede Testphase (10 Tage)
+      const testphaseDates = getSchoolDays('2025-12-15', 10);
+      for (let d = 0; d < 10; d++) {
+        const dailyItems = [];
+        let dailyBrutto = 0, dailyNetto = 0, dailyVat = 0;
+        Object.keys(testphaseQuantities).forEach(nr => {
+          const qty = Math.floor(testphaseQuantities[nr] / 10) + (d < (testphaseQuantities[nr] % 10) ? 1 : 0);
+          if (qty > 0 && prodMap[nr]) {
+            const p = prodMap[nr];
+            dailyBrutto += p.basePrice * qty;
+            dailyNetto += (p.basePrice * qty) / (1 + p.vatRate / 100);
+            dailyVat += (p.basePrice * qty) - ((p.basePrice * qty) / (1 + p.vatRate / 100));
+            dailyItems.push({ productId: p._id, name: p.name, quantity: qty, priceAtSale: p.basePrice, vatRateAtSale: p.vatRate });
+          }
+        });
+        await new Sale({ items: dailyItems, totalBrutto: Math.round(dailyBrutto * 100) / 100, totalNetto: Math.round(dailyNetto * 100) / 100, totalVat: Math.round(dailyVat * 100) / 100, saleDate: testphaseDates[d], status: 'closed', storno: false }).save();
+      }
+
+      // Seede Q1 (15 Tage)
+      const q1Dates = getSchoolDays('2026-01-05', 15);
+      for (let d = 0; d < 15; d++) {
+        const dailyItems = [];
+        let dailyBrutto = 0, dailyNetto = 0, dailyVat = 0;
+        Object.keys(q1Quantities).forEach(nr => {
+          const qty = Math.floor(q1Quantities[nr] / 15) + (d < (q1Quantities[nr] % 15) ? 1 : 0);
+          if (qty > 0 && prodMap[nr]) {
+            const p = prodMap[nr];
+            dailyBrutto += p.basePrice * qty;
+            dailyNetto += (p.basePrice * qty) / (1 + p.vatRate / 100);
+            dailyVat += (p.basePrice * qty) - ((p.basePrice * qty) / (1 + p.vatRate / 100));
+            dailyItems.push({ productId: p._id, name: p.name, quantity: qty, priceAtSale: p.basePrice, vatRateAtSale: p.vatRate });
+          }
+        });
+        await new Sale({ items: dailyItems, totalBrutto: Math.round(dailyBrutto * 100) / 100, totalNetto: Math.round(dailyNetto * 100) / 100, totalVat: Math.round(dailyVat * 100) / 100, saleDate: q1Dates[d], status: 'closed', storno: false }).save();
+      }
+
+      // Seede Q2 (15 Tage)
+      const q2Dates = getSchoolDays('2026-03-13', 15);
+      for (let d = 0; d < 15; d++) {
+        const dailyItems = [];
+        let dailyBrutto = 0, dailyNetto = 0, dailyVat = 0;
+        Object.keys(q2Quantities).forEach(nr => {
+          const qty = Math.floor(q2Quantities[nr] / 15) + (d < (q2Quantities[nr] % 15) ? 1 : 0);
+          if (qty > 0 && prodMap[nr]) {
+            const p = prodMap[nr];
+            dailyBrutto += p.basePrice * qty;
+            dailyNetto += (p.basePrice * qty) / (1 + p.vatRate / 100);
+            dailyVat += (p.basePrice * qty) - ((p.basePrice * qty) / (1 + p.vatRate / 100));
+            dailyItems.push({ productId: p._id, name: p.name, quantity: qty, priceAtSale: p.basePrice, vatRateAtSale: p.vatRate });
+          }
+        });
+        await new Sale({ items: dailyItems, totalBrutto: Math.round(dailyBrutto * 100) / 100, totalNetto: Math.round(dailyNetto * 100) / 100, totalVat: Math.round(dailyVat * 100) / 100, saleDate: q2Dates[d], status: 'closed', storno: false }).save();
+      }
+      console.log("✅ Alle historischen Verkäufe vollautomatisch eingespeist!");
+    }
+
     return NextResponse.json({ products });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

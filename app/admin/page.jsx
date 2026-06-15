@@ -1,6 +1,7 @@
 // app/admin/page.jsx
 'use client';
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function AdminDashboard() {
@@ -11,9 +12,15 @@ export default function AdminDashboard() {
   const [bestSellers, setBestSellers] = useState([]);
   const [products, setProducts] = useState([]);
   const [salesJournal, setSalesJournal] = useState([]);
-  const [selectedQuarter, setSelectedQuarter] = useState('q2');
+  const [periods, setPeriods] = useState([]); // Dynamische Zeiträume
+  const [selectedPeriodId, setSelectedPeriodId] = useState('');
   const [liveTime, setLiveTime] = useState('');
   const [liveDate, setLiveDate] = useState('');
+
+  // Perioden Creator States
+  const [newPeriodName, setNewPeriodName] = useState('');
+  const [newStartDate, setNewStartDate] = useState('');
+  const [newEndDate, setNewEndDate] = useState('');
 
   // System-Config States
   const [bannerActive, setBannerActive] = useState(false);
@@ -52,14 +59,21 @@ export default function AdminDashboard() {
     return () => clearInterval(interval);
   }, [isAuthenticated]);
 
+  // Zeiträume und Daten laden
   const loadData = () => {
-    fetch(`/api/admin/stats?quarter=${selectedQuarter}`)
+    fetch('/api/periods')
       .then(res => res.json())
       .then(data => {
-        if (data.summary) setStats(data.summary);
-        if (data.bestSellers) setBestSellers(data.bestSellers);
-      })
-      .catch(err => console.error(err));
+        if (data.success && data.periods) {
+          setPeriods(data.periods);
+          // Setzt die erste Periode als Default, falls noch keine gewählt ist
+          if (!selectedPeriodId && data.periods.length > 0) {
+            // Sucht nach Q2 als Default-Auswahl
+            const q2 = data.periods.find(p => p.name.includes("Q2"));
+            setSelectedPeriodId(q2 ? q2._id : data.periods[0]._id);
+          }
+        }
+      });
 
     fetch('/api/products')
       .then(res => res.json())
@@ -83,9 +97,24 @@ export default function AdminDashboard() {
       .catch(err => console.error(err));
   };
 
+  // Lädt Statistiken basierend auf dem ausgewählten Zeitraum nach Start- und Enddatum
   useEffect(() => {
-    if (isAuthenticated) loadData();
-  }, [selectedQuarter, isAuthenticated]);
+    if (!isAuthenticated) return;
+    loadData();
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!selectedPeriodId || periods.length === 0) return;
+    const activePeriod = periods.find(p => p._id === selectedPeriodId);
+    if (!activePeriod) return;
+
+    fetch(`/api/admin/stats?startDate=${activePeriod.startDate}&endDate=${activePeriod.endDate}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.summary) setStats(data.summary);
+        if (data.bestSellers) setBestSellers(data.bestSellers);
+      });
+  }, [selectedPeriodId, periods]);
 
   const handlePriceUpdate = async (id, newPrice) => {
     if (!newPrice || isNaN(newPrice)) return;
@@ -118,15 +147,9 @@ export default function AdminDashboard() {
     const res = await fetch('/api/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        bannerActive, 
-        bannerMessage, 
-        maintenanceActive 
-      })
+      body: JSON.stringify({ bannerActive, bannerMessage, maintenanceActive })
     });
-    if (res.ok) {
-      alert("Systemkonfiguration erfolgreich aktualisiert!");
-    }
+    if (res.ok) alert("Systemkonfiguration erfolgreich aktualisiert!");
   };
 
   const handleJournalStorno = async (saleId) => {
@@ -139,20 +162,38 @@ export default function AdminDashboard() {
     if (res.ok) loadData();
   };
 
-  // BUCHHALTUNGS-FILTER: Synchronisiert das Journal in Echtzeit mit den Kacheln
+  // PERIODEN CREATOR: Neuen Zeitraum anlegen
+  const handleCreatePeriod = async (e) => {
+    e.preventDefault();
+    const res = await fetch('/api/periods', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: newPeriodName, startDate: newStartDate, endDate: newEndDate })
+    });
+    if (res.ok) {
+      setNewPeriodName('');
+      setNewStartDate('');
+      setNewEndDate('');
+      loadData();
+      alert("Abrechnungszeitraum erfolgreich angelegt!");
+    }
+  };
+
+  const handleDeletePeriod = async (id) => {
+    if (!confirm("Möchtest du diesen Abrechnungszeitraum wirklich löschen?")) return;
+    const res = await fetch(`/api/periods/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      setSelectedPeriodId('');
+      loadData();
+    }
+  };
+
   const getFilteredSales = () => {
+    const activePeriod = periods.find(p => p._id === selectedPeriodId);
+    if (!activePeriod) return [];
     return salesJournal.filter(sale => {
       const date = sale.saleDate;
-      if (selectedQuarter === 'testphase') {
-        return date >= '2025-12-15' && date <= '2025-12-31';
-      }
-      if (selectedQuarter === 'q1') {
-        return date >= '2026-01-01' && date <= '2026-03-12';
-      }
-      if (selectedQuarter === 'q2') {
-        return date >= '2026-03-13' && date <= '2026-08-31'; // Erfasst alle Live-Umsätze!
-      }
-      return true;
+      return date >= activePeriod.startDate && date <= activePeriod.endDate;
     });
   };
 
@@ -161,175 +202,238 @@ export default function AdminDashboard() {
       <div className="min-h-screen bg-[#F5F5F7] flex flex-col items-center justify-center font-sans">
         <form onSubmit={handleLogin} className="bg-white/80 backdrop-blur-md p-10 rounded-3xl shadow-xl max-w-sm w-full border border-white/20 text-center animate-fade-in">
           <span className="text-4xl mb-4 block">🔒</span>
-          <h2 className="text-xl font-bold text-[#0B2F5C] mb-2 tracking-tight">Admin-Bereich geschützt</h2>
+          <h2 className="text-xl font-bold text-[#D31329] mb-2 tracking-tight">Admin-Bereich geschützt</h2>
           <p className="text-xs text-gray-400 mb-6 font-semibold uppercase tracking-wider">St. Ursula Weltladen Villingen</p>
           <input 
             type="password" 
             placeholder="Kennwort eingeben..."
             value={passcode}
             onChange={(e) => setPasscode(e.target.value)}
-            className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-4 focus:ring-[#0B2F5C]/10 focus:border-[#0B2F5C] text-center font-bold tracking-widest mb-4"
+            className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-4 focus:ring-[#D31329]/10 focus:border-[#D31329] text-center font-bold tracking-widest mb-4"
           />
-          <button type="submit" className="w-full py-3.5 bg-[#0B2F5C] hover:bg-[#153e61] text-white font-bold rounded-2xl transition-all active:scale-95 shadow-md">Entsperren</button>
+          <button type="submit" className="w-full py-3.5 bg-[#D31329] hover:bg-[#b01020] text-white font-bold rounded-2xl transition-all active:scale-95 shadow-md">Entsperren</button>
         </form>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F5F7] text-[#1D1D1F] p-8 font-sans antialiased">
-      <header className="flex justify-between items-center mb-8 border-b pb-6 border-gray-200">
-        <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-[#0B2F5C]">Systemsteuerung</h1>
-          <p className="text-sm text-gray-400 font-semibold tracking-wider uppercase mt-1">St. Ursula Weltladen • Villingen</p>
-        </div>
-        <div className="flex items-center gap-6">
-          <div className="text-right">
-            <span className="text-base font-bold text-gray-800 font-mono tracking-widest">{liveTime || '00:00:00'}</span>
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{liveDate || 'Lade Datum...'}</p>
-          </div>
-          <button onClick={handleLogout} className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-xl text-xs uppercase tracking-wider transition-all">Abmelden</button>
-          <select value={selectedQuarter} onChange={(e) => setSelectedQuarter(e.target.value)} className="bg-white border border-gray-200 px-4 py-2.5 rounded-2xl shadow-sm font-semibold text-gray-700 outline-none">
-            <option value="testphase">Testphase (15.12.25 - 31.12.25)</option>
-            <option value="q1">1. Quartal (Q1) (01.01.26 - 12.03.26)</option>
-            <option value="q2">2. Quartal (Q2) (13.03.26 - 31.08.26)</option>
-          </select>
-        </div>
-      </header>
-
-      {/* KPI Dashboard */}
-      <div className="grid grid-cols-3 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm"><p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Umsatz (Brutto)</p><p className="text-3xl font-extrabold text-[#0B2F5C] mt-2">{stats.totalRevenue.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</p></div>
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm"><p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Umsatz (Netto)</p><p className="text-3xl font-extrabold text-[#F2B600] mt-2">{stats.totalNetto?.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }) || '0,00 €'}</p></div>
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm"><p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Belege gesamt</p><p className="text-3xl font-extrabold mt-2 text-gray-700">{stats.salesCount} Belege</p></div>
-      </div>
-
-      <div className="grid grid-cols-12 gap-8 mb-8">
-        <section className="col-span-6 bg-white p-6 rounded-3xl border border-gray-200/50 shadow-sm h-[380px] flex flex-col justify-between">
-          <h2 className="text-lg font-bold text-[#0B2F5C] mb-6">Best-Selling Products</h2>
-          <div className="h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={bestSellers}>
-                <XAxis dataKey="name" tick={{ fontSize: 9, fill: '#86868B' }} />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="totalSold" fill="#0B2F5C" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </section>
-
-        {/* SYSTEMSTEUERUNG */}
-        <section className="col-span-6 bg-white p-6 rounded-3xl border border-gray-200/50 shadow-sm h-[380px] flex flex-col justify-between">
-          <h2 className="text-lg font-bold text-[#0B2F5C]">Kassensystem konfigurieren</h2>
-          <form onSubmit={handleSaveConfig} className="flex flex-col gap-4 mt-4 h-full justify-between">
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center justify-between bg-[#F5F5F7] p-3 rounded-xl border">
-                <span className="text-xs font-bold uppercase text-gray-500 tracking-wider">Aktionsbanner anzeigen?</span>
-                <input type="checkbox" checked={bannerActive} onChange={(e) => setBannerActive(e.target.checked)} className="h-5 w-5 text-[#0B2F5C] focus:ring-[#0B2F5C]" />
-              </div>
-              <div className="flex items-center justify-between bg-red-50 p-3 rounded-xl border border-red-100">
-                <span className="text-xs font-bold uppercase text-red-600 tracking-wider">⚠️ Systemweiten Wartungsmodus aktivieren?</span>
-                <input type="checkbox" checked={maintenanceActive} onChange={(e) => setMaintenanceActive(e.target.checked)} className="h-5 w-5 text-red-600 focus:ring-red-500" />
+    <div className="min-h-screen bg-[#F5F5F7] text-[#1D1D1F] p-8 font-sans antialiased flex flex-col justify-between selection:bg-[#D31329] selection:text-white">
+      <div>
+        <header className="flex justify-between items-center mb-8 border-b pb-6 border-gray-200">
+          <div className="flex items-center gap-4">
+            <Link href="/" className="h-8 w-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-sm font-bold text-gray-600 transition-all active:scale-90">←</Link>
+            <div className="flex items-center gap-3">
+              <img src="/logo.png" alt="St. Ursula Villingen" className="h-10 w-auto object-contain rounded" onError={(e) => { e.target.style.display = 'none'; }} />
+              <div>
+                <h1 className="text-3xl font-extrabold tracking-tight text-[#D31329]">Systemsteuerung</h1>
+                <p className="text-sm text-gray-400 font-semibold tracking-wider uppercase mt-1">St. Ursula Weltladen • Villingen</p>
               </div>
             </div>
-            <div>
-              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2">Banner Nachricht</label>
-              <textarea value={bannerMessage} onChange={(e) => setBannerMessage(e.target.value)} rows="2" className="w-full px-4 py-2 border rounded-xl font-medium" placeholder="Nachricht an der Kasse einblenden..." />
+          </div>
+          <div className="flex items-center gap-6">
+            <div className="text-right">
+              <span className="text-base font-bold text-gray-800 font-mono tracking-widest">{liveTime || '00:00:00'}</span>
+              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{liveDate || 'Lade Datum...'}</p>
             </div>
-            <button type="submit" className="w-full py-3.5 bg-[#F2B600] hover:bg-[#d49e1e] text-white font-bold rounded-2xl transition-all">Konfigurationen speichern</button>
-          </form>
-        </section>
+            <button onClick={handleLogout} className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-xl text-xs uppercase tracking-wider transition-all">Abmelden</button>
+            
+            {/* DYNAMISCHES DROP-DOWN (Aus der MongoDB geladen!) */}
+            <select 
+              value={selectedPeriodId} 
+              onChange={(e) => setSelectedPeriodId(e.target.value)} 
+              className="bg-white border border-gray-200 px-4 py-2.5 rounded-2xl shadow-sm font-semibold text-gray-700 outline-none"
+            >
+              {periods.map(p => (
+                <option key={p._id} value={p._id}>
+                  {p.name} ({new Date(p.startDate).toLocaleDateString('de-DE')} - {new Date(p.endDate).toLocaleDateString('de-DE')})
+                </option>
+              ))}
+            </select>
+          </div>
+        </header>
+
+        {/* KPI Dashboard */}
+        <div className="grid grid-cols-3 gap-6 mb-8">
+          <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm"><p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Umsatz (Brutto)</p><p className="text-3xl font-extrabold text-[#D31329] mt-2">{stats.totalRevenue.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</p></div>
+          <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm"><p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Umsatz (Netto)</p><p className="text-3xl font-extrabold text-[#8E8E93] mt-2">{stats.totalNetto?.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }) || '0,00 €'}</p></div>
+          <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm"><p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Belege gesamt</p><p className="text-3xl font-extrabold mt-2 text-gray-700">{stats.salesCount} Belege</p></div>
+        </div>
+
+        <div className="grid grid-cols-12 gap-8 mb-8">
+          <section className="col-span-6 bg-white p-6 rounded-3xl border border-gray-200/50 shadow-sm h-[380px] flex flex-col justify-between">
+            <h2 className="text-lg font-bold text-[#D31329] mb-6">Best-Selling Products</h2>
+            <div className="h-72 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={bestSellers}>
+                  <XAxis dataKey="name" tick={{ fontSize: 9, fill: '#86868B' }} />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="totalSold" fill="#D31329" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </section>
+
+          {/* SYSTEMSTEUERUNG */}
+          <section className="col-span-6 bg-white p-6 rounded-3xl border border-gray-200/50 shadow-sm h-[380px] flex flex-col justify-between">
+            <h2 className="text-lg font-bold text-[#D31329]">Kassensystem konfigurieren</h2>
+            <form onSubmit={handleSaveConfig} className="flex flex-col gap-4 mt-4 h-full justify-between">
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between bg-[#F5F5F7] p-3 rounded-xl border">
+                  <span className="text-xs font-bold uppercase text-gray-500 tracking-wider">Aktionsbanner anzeigen?</span>
+                  <input type="checkbox" checked={bannerActive} onChange={(e) => setBannerActive(e.target.checked)} className="h-5 w-5 text-[#D31329] focus:ring-[#D31329]" />
+                </div>
+                <div className="flex items-center justify-between bg-red-50 p-3 rounded-xl border border-red-100">
+                  <span className="text-xs font-bold uppercase text-red-600 tracking-wider">⚠️ Systemweiten Wartungsmodus aktivieren?</span>
+                  <input type="checkbox" checked={maintenanceActive} onChange={(e) => setMaintenanceActive(e.target.checked)} className="h-5 w-5 text-red-600 focus:ring-red-500" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2">Banner Nachricht</label>
+                <textarea value={bannerMessage} onChange={(e) => setBannerMessage(e.target.value)} rows="2" className="w-full px-4 py-2 border rounded-xl font-medium" placeholder="Nachricht an der Kasse einblenden..." />
+              </div>
+              <button type="submit" className="w-full py-3.5 bg-[#D31329] hover:bg-[#b01020] text-white font-bold rounded-2xl transition-all">Konfigurationen speichern</button>
+            </form>
+          </section>
+        </div>
+
+        {/* ABRECHNUNGSZEITRÄUME VERWALTEN (NEU!) */}
+        <div className="grid grid-cols-12 gap-8 mb-8">
+          <section className="col-span-12 bg-white p-6 rounded-3xl border border-gray-200/50 shadow-sm">
+            <h2 className="text-lg font-bold text-[#D31329] mb-4">Abrechnungszeiträume verwalten</h2>
+            <div className="grid grid-cols-12 gap-6">
+              
+              {/* Creator Form */}
+              <form onSubmit={handleCreatePeriod} className="col-span-5 flex flex-col gap-4 border-r pr-6">
+                <div>
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Zeitraum Name</label>
+                  <input type="text" value={newPeriodName} onChange={(e) => setNewPeriodName(e.target.value)} placeholder="z. B. 3. Quartal (Q3)" className="w-full px-4 py-2 border rounded-xl font-medium" required />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Startdatum</label>
+                    <input type="date" value={newStartDate} onChange={(e) => setNewStartDate(e.target.value)} className="w-full px-4 py-2 border rounded-xl font-medium" required />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Enddatum</label>
+                    <input type="date" value={newEndDate} onChange={(e) => setNewEndDate(e.target.value)} className="w-full px-4 py-2 border rounded-xl font-medium" required />
+                  </div>
+                </div>
+                <button type="submit" className="w-full py-3 bg-[#D31329] hover:bg-[#b01020] text-white font-bold rounded-xl shadow-md transition-all">Zeitraum erstellen</button>
+              </form>
+
+              {/* List and Delete */}
+              <div className="col-span-7 overflow-y-auto max-h-64">
+                <table className="w-full text-left border-collapse">
+                  <thead><tr className="border-b text-xs text-gray-400 uppercase tracking-wider font-bold"><th className="py-2">Name</th><th>Start</th><th>Ende</th><th className="text-right">Aktionen</th></tr></thead>
+                  <tbody>
+                    {periods.map(p => (
+                      <tr key={p._id} className="border-b text-sm">
+                        <td className="font-bold py-2">{p.name}</td>
+                        <td className="font-mono text-xs">{p.startDate}</td>
+                        <td className="font-mono text-xs">{p.endDate}</td>
+                        <td className="text-right py-1">
+                          <button onClick={() => handleDeletePeriod(p._id)} className="px-3 py-1 bg-red-50 text-red-600 font-bold rounded-lg text-xs uppercase hover:bg-red-100">Löschen</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <div className="grid grid-cols-12 gap-8 mb-8">
+          {/* Neues Produkt anlegen */}
+          <section className="col-span-12 bg-white p-6 rounded-3xl border border-gray-200/50 shadow-sm">
+            <h2 className="text-lg font-bold text-[#D31329] mb-6">Neues Produkt hinzufügen</h2>
+            <form onSubmit={handleAddProduct} className="grid grid-cols-4 gap-4">
+              <input type="text" name="pname" placeholder="Produktname" className="px-4 py-3 rounded-xl border font-medium focus:ring-2 focus:ring-[#D31329]/20 focus:border-[#D31329] outline-none" required />
+              <select name="pgroup" className="px-4 py-3 rounded-xl border font-medium focus:ring-2 focus:ring-[#D31329]/20 focus:border-[#D31329] outline-none"><option value="Lebensmittel">Lebensmittel</option><option value="Unverpackt; Lebensmittel">Unverpackt; Lebensmittel</option><option value="Schreibwaren">Schreibwaren</option><option value="Sonstige">Sonstige</option></select>
+              <input type="number" step="0.05" name="pprice" placeholder="Preis (€)" className="px-4 py-3 rounded-xl border font-medium focus:ring-2 focus:ring-[#D31329]/20 focus:border-[#D31329] outline-none" required />
+              <select name="pvat" className="px-4 py-3 rounded-xl border font-medium focus:ring-2 focus:ring-[#D31329]/20 focus:border-[#D31329] outline-none"><option value={7}>7% (Essen)</option><option value={19}>19% (Zubehör)</option></select>
+              <button type="submit" className="col-span-4 py-3.5 bg-[#D31329] hover:bg-[#b01020] text-white font-bold rounded-xl shadow-md transition-all active:scale-95">Produkt hinzufügen</button>
+            </form>
+          </section>
+
+          {/* Editierbares Produktregister */}
+          <section className="col-span-12 bg-white p-6 rounded-3xl border border-gray-200/50 shadow-sm">
+            <h2 className="text-lg font-bold text-[#D31329] mb-4">Editierbares Produktregister</h2>
+            <div className="overflow-y-auto max-h-72">
+              <table className="w-full text-left border-collapse">
+                <thead><tr className="border-b text-xs text-gray-400 uppercase tracking-wider font-bold"><th className="py-3">Nr.</th><th>Bezeichnung</th><th>Warengruppe</th><th className="text-center">MwSt.</th><th className="text-right">Preis (€)</th><th className="text-right">Aktionen</th></tr></thead>
+                <tbody>
+                  {products.map((p) => (
+                    <tr key={p._id} className="border-b text-sm"><td className="py-3 font-mono text-xs text-gray-400">{p.nr}</td><td className="font-bold text-gray-800">{p.name}</td><td><span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full uppercase">{p.group}</span></td><td className="text-center text-gray-500 font-mono">{p.vatRate}%</td><td className="text-right py-1"><input type="number" step="0.05" defaultValue={p.basePrice} onBlur={(e) => handlePriceUpdate(p._id, e.target.value)} className="w-20 text-right border rounded-xl px-2 py-1 font-bold text-gray-800 focus:ring-2 focus:ring-[#D31329]/20 focus:border-[#D31329] outline-none" /></td><td className="text-right py-1"><button onClick={() => handleDeleteProduct(p._id)} className="px-3 py-1 bg-red-50 text-red-600 font-bold rounded-lg text-xs uppercase tracking-wider hover:bg-red-100">Löschen</button></td></tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          {/* Transaktionsjournal */}
+          <section className="col-span-12 bg-white p-6 rounded-3xl border border-gray-200/50 shadow-sm mb-8">
+            <h2 className="text-lg font-bold text-[#D31329] mb-4">Transaktionsjournal</h2>
+            <p className="text-xs text-gray-400 mb-6 font-medium">Zeigt genau die Belege an, die zum oben ausgewählten Abrechnungszeitraum gehören.</p>
+            <div className="overflow-y-auto max-h-96">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b text-xs text-gray-400 uppercase tracking-wider font-bold">
+                    <th className="py-3">Abrechnungsdatum</th>
+                    <th>Bon-ID</th>
+                    <th>Artikel</th>
+                    <th>Status</th>
+                    <th className="text-right">Summe (Brutto)</th>
+                    <th className="text-right">Aktionen</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {getFilteredSales().map((sale) => (
+                    <tr key={sale._id} className={`border-b text-sm ${sale.storno ? 'bg-red-50/30 line-through text-gray-400' : ''}`}>
+                      <td className="py-3 font-mono text-xs">{sale.saleDate} • {new Date(sale.createdAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr</td>
+                      <td className="font-mono text-xs text-gray-400">{sale._id.slice(-6).toUpperCase()}</td>
+                      <td>
+                        <div className="flex flex-col gap-1">
+                          {sale.items.map((item, i) => (
+                            <span key={i} className="text-xs font-semibold">
+                              {item.quantity}x {item.name} ({item.priceAtSale.toFixed(2)} €)
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td>
+                        {sale.storno ? (
+                          <span className="text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full uppercase">Storniert</span>
+                        ) : (
+                          <span className="text-[10px] font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full uppercase">{sale.status}</span>
+                        )}
+                      </td>
+                      <td className="text-right font-bold text-[#D31329]">{sale.totalBrutto.toFixed(2)} €</td>
+                      <td className="text-right py-2">
+                        {!sale.storno && (
+                          <button 
+                            onClick={() => handleJournalStorno(sale._id)}
+                            className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-600 font-bold rounded-lg text-xs uppercase tracking-wider"
+                          >
+                            Stornieren
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-8">
-        {/* Neues Produkt anlegen */}
-        <section className="col-span-12 bg-white p-6 rounded-3xl border border-gray-200/50 shadow-sm">
-          <h2 className="text-lg font-bold text-[#0B2F5C] mb-6">Neues Produkt hinzufügen</h2>
-          <form onSubmit={handleAddProduct} className="grid grid-cols-4 gap-4">
-            <input type="text" name="pname" placeholder="Produktname" className="px-4 py-3 rounded-xl border font-medium" required />
-            <select name="pgroup" className="px-4 py-3 rounded-xl border font-medium"><option value="Lebensmittel">Lebensmittel</option><option value="Unverpackt; Lebensmittel">Unverpackt; Lebensmittel</option><option value="Schreibwaren">Schreibwaren</option><option value="Sonstige">Sonstige</option></select>
-            <input type="number" step="0.05" name="pprice" placeholder="Preis (€)" className="px-4 py-3 rounded-xl border font-medium" required />
-            <select name="pvat" className="px-4 py-3 rounded-xl border font-medium"><option value={7}>7% (Essen)</option><option value={19}>19% (Zubehör)</option></select>
-            <button type="submit" className="col-span-4 py-3.5 bg-[#0B2F5C] hover:bg-[#153e63] text-white font-bold rounded-xl shadow-md">Produkt hinzufügen</button>
-          </form>
-        </section>
-
-        {/* Editierbares Produktregister */}
-        <section className="col-span-12 bg-white p-6 rounded-3xl border border-gray-200/50 shadow-sm">
-          <h2 className="text-lg font-bold text-[#0B2F5C] mb-4">Editierbares Produktregister</h2>
-          <div className="overflow-y-auto max-h-72">
-            <table className="w-full text-left border-collapse">
-              <thead><tr className="border-b text-xs text-gray-400 uppercase tracking-wider font-bold"><th className="py-3">Nr.</th><th>Bezeichnung</th><th>Warengruppe</th><th className="text-center">MwSt.</th><th className="text-right">Preis (€)</th><th className="text-right">Aktionen</th></tr></thead>
-              <tbody>
-                {products.map((p) => (
-                  <tr key={p._id} className="border-b text-sm"><td className="py-3 font-mono text-xs text-gray-400">{p.nr}</td><td className="font-bold text-gray-800">{p.name}</td><td><span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full uppercase">{p.group}</span></td><td className="text-center text-gray-500 font-mono">{p.vatRate}%</td><td className="text-right py-1"><input type="number" step="0.05" defaultValue={p.basePrice} onBlur={(e) => handlePriceUpdate(p._id, e.target.value)} className="w-20 text-right border rounded-xl px-2 py-1 font-bold text-gray-800" /></td><td className="text-right py-1"><button onClick={() => handleDeleteProduct(p._id)} className="px-3 py-1 bg-red-50 text-red-600 font-bold rounded-lg text-xs uppercase tracking-wider">Löschen</button></td></tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        {/* Transaktionsjournal (DYNAMISCH SYNCHRONISIERT) */}
-        <section className="col-span-12 bg-white p-6 rounded-3xl border border-gray-200/50 shadow-sm">
-          <h2 className="text-lg font-bold text-[#0B2F5C] mb-4">Transaktionsjournal</h2>
-          <p className="text-xs text-gray-400 mb-6 font-medium">Zeigt genau die Belege an, die zum oben ausgewählten Abrechnungszeitraum gehören.</p>
-          <div className="overflow-y-auto max-h-96">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b text-xs text-gray-400 uppercase tracking-wider font-bold">
-                  <th className="py-3">Abrechnungsdatum</th>
-                  <th>Bon-ID</th>
-                  <th>Artikel</th>
-                  <th>Status</th>
-                  <th className="text-right">Summe (Brutto)</th>
-                  <th className="text-right">Aktionen</th>
-                </tr>
-              </thead>
-              <tbody>
-                {getFilteredSales().map((sale) => (
-                  <tr key={sale._id} className={`border-b text-sm ${sale.storno ? 'bg-red-50/30 line-through text-gray-400' : ''}`}>
-                    <td className="py-3 font-mono text-xs">{sale.saleDate} • {new Date(sale.createdAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr</td>
-                    <td className="font-mono text-xs text-gray-400">{sale._id.slice(-6).toUpperCase()}</td>
-                    <td>
-                      <div className="flex flex-col gap-1">
-                        {sale.items.map((item, i) => (
-                          <span key={i} className="text-xs font-semibold">
-                            {item.quantity}x {item.name} ({item.priceAtSale.toFixed(2)} €)
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td>
-                      {sale.storno ? (
-                        <span className="text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full uppercase">Storniert</span>
-                      ) : (
-                        <span className="text-[10px] font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full uppercase">{sale.status}</span>
-                      )}
-                    </td>
-                    <td className="text-right font-bold text-[#0B2F5C]">{sale.totalBrutto.toFixed(2)} €</td>
-                    <td className="text-right py-2">
-                      {!sale.storno && (
-                        <button 
-                          onClick={() => handleJournalStorno(sale._id)}
-                          className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-600 font-bold rounded-lg text-xs uppercase tracking-wider"
-                        >
-                          Stornieren
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-                {getFilteredSales().length === 0 && (
-                  <tr>
-                    <td colSpan="6" className="text-center py-12 text-gray-400">Keine Transaktionen in diesem Zeitraum gefunden</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </div>
+      {/* Copyright Footer */}
+      <footer className="mt-8 py-5 text-center text-[10px] text-gray-400 font-bold uppercase tracking-wider bg-white border-t border-gray-150">
+        © 2026 Schülerfirma Weltladen St. Ursula Villingen. Alle Rechte vorbehalten für Jill Manuel Hils.
+      </footer>
     </div>
   );
 }
