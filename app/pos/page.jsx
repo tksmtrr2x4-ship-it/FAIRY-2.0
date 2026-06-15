@@ -1,4 +1,3 @@
-// app/pos/page.jsx
 'use client';
 import React, { useState, useEffect } from 'react';
 
@@ -8,19 +7,15 @@ export default function PosInterface() {
   const [cart, setCart] = useState([]);
   const [lastSaleId, setLastSaleId] = useState(null);
   const [liveTime, setLiveTime] = useState('');
+  
+  // Banner State
+  const [banner, setBanner] = useState({ active: false, message: '' });
 
-  // States für den interaktiven Pausen-/Kassenschluss-Bericht
+  // States für den Bericht
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportTitle, setReportTitle] = useState('');
   const [pendingPhase, setPendingPhase] = useState('');
-  const [reportData, setReportData] = useState({
-    brutto: 0,
-    netto: 0,
-    vat7: 0,
-    vat19: 0,
-    pfand: 0,
-    count: 0
-  });
+  const [reportData, setReportData] = useState({ brutto: 0, netto: 0, vat7: 0, vat19: 0, pfand: 0, count: 0 });
 
   // Live-Uhrzeit initialisieren
   useEffect(() => {
@@ -33,18 +28,25 @@ export default function PosInterface() {
     return () => clearInterval(interval);
   }, []);
 
-  // Produkte laden
-  const loadProducts = () => {
+  // Produkte und Aktionsbanner laden
+  const loadData = () => {
     fetch('/api/products')
       .then(res => res.json())
       .then(data => {
         if (data.products) setProducts(data.products);
       })
-      .catch(err => console.error("API-Verbindungsfehler:", err));
+      .catch(err => console.error("Fehler beim Laden der Produkte:", err));
+
+    fetch('/api/settings')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.settings) setBanner(data.settings);
+      })
+      .catch(err => console.error("Fehler beim Laden des Banners:", err));
   };
 
   useEffect(() => {
-    loadProducts();
+    loadData();
   }, []);
 
   const addToCart = (product) => {
@@ -62,17 +64,36 @@ export default function PosInterface() {
     }
   };
 
+  // BUCHEN MIT PRÄZISEM MAPPING
   const handleCheckout = async () => {
     if (cart.length === 0) return;
-    const res = await fetch('/api/sales', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'CHECKOUT', items: cart })
-    });
-    const data = await res.json();
-    if (data.success) {
-      setLastSaleId(data.sale._id);
-      setCart([]);
+
+    const formattedItems = cart.map(item => ({
+      productId: item.id,
+      name: item.name,
+      quantity: item.quantity,
+      priceAtSale: item.priceAtSale,
+      vatRateAtSale: item.vatRateAtSale
+    }));
+
+    try {
+      const res = await fetch('/api/sales', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'CHECKOUT', items: formattedItems })
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        setLastSaleId(data.sale._id);
+        setCart([]);
+        alert("Einkauf erfolgreich gebucht!");
+      } else {
+        alert("Fehler beim Speichern des Umsatzes: " + (data.error || "Unbekannt"));
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Netzwerkfehler beim Buchen.");
     }
   };
 
@@ -85,50 +106,42 @@ export default function PosInterface() {
     });
     const data = await res.json();
     if (data.success) {
-      alert("Letzter Verkauf wurde storniert.");
+      alert("Letzter Verkauf wurde erfolgreich storniert!");
       setLastSaleId(null);
     }
   };
 
-  // Interaktiver Kassensturz-Prozess (Vorschau generieren)
   const prepareReport = async (phase) => {
     const titles = {
       'pause1': 'Abschlussbericht: 1. Große Pause',
       'pause2': 'Abschlussbericht: 2. Große Pause',
       'closed': 'Tagesabschluss (Z-Bon): Kassenschluss'
     };
-
     setPendingPhase(phase);
     setReportTitle(titles[phase]);
 
     try {
-      // Statistiken der aktiven (unarchivierten) Verkäufe abrufen
       const res = await fetch('/api/admin/stats');
       const data = await res.json();
-      
-      if (data.success || data.summary) {
-        // Wir simulieren den Kassenbericht basierend auf den aktuell offenen Verkäufen
+      if (data.success && data.summary) {
         setReportData({
           brutto: data.summary.totalRevenue || 0,
           netto: data.summary.totalNetto || 0,
-          vat7: data.summary.totalVat * 0.35 || 0, // Gewichtete MwSt-Aufteilung (7%)
-          vat19: data.summary.totalVat * 0.65 || 0, // Gewichtete MwSt-Aufteilung (19%)
-          pfand: 0, // Wird bei Buchung verrechnet
+          vat7: data.summary.totalVat * 0.35 || 0,
+          vat19: data.summary.totalVat * 0.65 || 0,
+          pfand: 0,
           count: data.summary.salesCount || 0
         });
         setShowReportModal(true);
       } else {
-        // Fallback falls heute noch gar kein Verkauf getätigt wurde
         setReportData({ brutto: 0, netto: 0, vat7: 0, vat19: 0, pfand: 0, count: 0 });
         setShowReportModal(true);
       }
     } catch (err) {
       console.error(err);
-      alert("Fehler beim Erstellen des Kassenberichts.");
     }
   };
 
-  // Bericht bestätigen & in Datenbank festschreiben
   const confirmReport = async () => {
     try {
       const res = await fetch('/api/sales', {
@@ -139,7 +152,7 @@ export default function PosInterface() {
       const data = await res.json();
       if (data.success) {
         setShowReportModal(false);
-        alert(`${reportTitle} erfolgreich archiviert! Die Kasse wurde für die nächste Phase zurückgesetzt.`);
+        alert(`${reportTitle} erfolgreich archiviert!`);
       }
     } catch (err) {
       console.error(err);
@@ -150,7 +163,8 @@ export default function PosInterface() {
 
   return (
     <div className="min-h-screen bg-[#F5F5F7] text-[#1D1D1F] font-sans antialiased flex flex-col selection:bg-[#0D2B45] selection:text-white">
-      {/* Premium Apple Navigation Header */}
+      
+      {/* Header */}
       <header className="sticky top-0 z-40 backdrop-blur-md bg-white/75 border-b border-gray-200/50 px-8 py-4 flex justify-between items-center transition-all duration-300">
         <div className="flex items-center gap-6">
           <div>
@@ -163,22 +177,24 @@ export default function PosInterface() {
             Live-Kasse
           </div>
         </div>
-
-        {/* Live Uhrzeit & Datum */}
-        <div className="flex items-center gap-4">
-          <div className="text-right">
-            <span className="text-sm font-bold text-gray-800 font-mono tracking-widest">{liveTime || '00:00:00'}</span>
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
-              {new Date().toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long' })}
-            </p>
-          </div>
+        <div className="text-right">
+          <span className="text-sm font-bold text-gray-800 font-mono tracking-widest">{liveTime || '00:00:00'}</span>
+          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+            {new Date().toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long' })}
+          </p>
         </div>
       </header>
 
+      {/* DYNAMISCHES AKTIONSBANNER */}
+      {banner.active && (
+        <div className="bg-[#E6AF2E]/10 border-b border-[#E6AF2E]/20 text-[#0D2B45] py-3 px-8 text-center text-sm font-bold tracking-wide flex items-center justify-center gap-2 animate-pulse">
+          <span className="h-2 w-2 rounded-full bg-[#E6AF2E]" />
+          📢 {banner.message}
+        </div>
+      )}
+
       {/* Main Grid */}
       <div className="flex-1 grid grid-cols-12 gap-6 p-8">
-        
-        {/* Katalog */}
         <main className="col-span-8 flex flex-col gap-6">
           <div className="relative shadow-sm rounded-2xl">
             <input 
@@ -194,12 +210,9 @@ export default function PosInterface() {
             <div className="flex-1 bg-white border border-gray-100 rounded-3xl p-12 flex flex-col items-center justify-center text-center shadow-sm">
               <div className="h-12 w-12 rounded-full bg-amber-50 text-amber-500 flex items-center justify-center mb-4 text-xl">⚠️</div>
               <h3 className="text-lg font-bold text-[#0D2B45]">Lade Produktdaten...</h3>
-              <p className="text-sm text-gray-400 max-w-sm mt-2 font-medium">
-                Falls dieser Ladebildschirm dauerhaft bleibt, prüfe bitte, ob dein MongoDB-Passwort und die IP-Freigabe korrekt sind.
-              </p>
             </div>
           ) : (
-            <div className="flex-1 overflow-y-auto grid grid-cols-3 gap-4 pr-2 max-h-[calc(100vh-240px)]">
+            <div className="flex-1 overflow-y-auto grid grid-cols-3 gap-4 pr-2 max-h-[calc(100vh-280px)]">
               {products
                 .filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
                 .map(product => (
@@ -221,7 +234,6 @@ export default function PosInterface() {
           )}
         </main>
 
-        {/* Warenkorb */}
         <aside className="col-span-4 bg-white border border-gray-200/50 rounded-3xl p-6 flex flex-col justify-between shadow-xl backdrop-blur-lg">
           <div>
             <h2 className="text-lg font-bold border-b pb-4 mb-4 text-[#0D2B45] tracking-tight">Einkaufszettel</h2>
@@ -275,115 +287,41 @@ export default function PosInterface() {
         </aside>
       </div>
 
-      {/* Interaktiver Kassensturz / Pausenbeendigung Footer */}
+      {/* Footer */}
       <footer className="bg-white border-t border-gray-200 px-8 py-5 flex justify-between items-center gap-4">
-        <div className="text-xs text-gray-400 font-bold uppercase tracking-wider">
-          Pausen- & Schlussschaltung verwalten
-        </div>
+        <div className="text-xs text-gray-400 font-bold uppercase tracking-wider">Pausen- & Schlussschaltung</div>
         <div className="flex gap-4">
-          <button 
-            onClick={() => prepareReport('pause1')} 
-            className="px-6 py-3 bg-blue-500/10 text-blue-600 hover:bg-blue-500 hover:text-white font-bold rounded-2xl text-xs uppercase tracking-wider transition-all duration-300 shadow-sm active:scale-95"
-          >
-            Ende 1. Pause
-          </button>
-          <button 
-            onClick={() => prepareReport('pause2')} 
-            className="px-6 py-3 bg-purple-500/10 text-purple-600 hover:bg-purple-500 hover:text-white font-bold rounded-2xl text-xs uppercase tracking-wider transition-all duration-300 shadow-sm active:scale-95"
-          >
-            Ende 2. Pause
-          </button>
-          <button 
-            onClick={() => prepareReport('closed')} 
-            className="px-6 py-3 bg-red-500/10 text-red-600 hover:bg-red-500 hover:text-white font-bold rounded-2xl text-xs uppercase tracking-wider transition-all duration-300 shadow-sm active:scale-95"
-          >
-            Kassenschluss (Rot)
-          </button>
+          <button onClick={() => prepareReport('pause1')} className="px-6 py-3 bg-blue-500/10 text-blue-600 hover:bg-blue-500 hover:text-white font-bold rounded-2xl text-xs uppercase tracking-wider transition-all duration-300 shadow-sm active:scale-95">Ende 1. Pause</button>
+          <button onClick={() => prepareReport('pause2')} className="px-6 py-3 bg-purple-500/10 text-purple-600 hover:bg-purple-500 hover:text-white font-bold rounded-2xl text-xs uppercase tracking-wider transition-all duration-300 shadow-sm active:scale-95">Ende 2. Pause</button>
+          <button onClick={() => prepareReport('closed')} className="px-6 py-3 bg-red-500/10 text-red-600 hover:bg-red-500 hover:text-white font-bold rounded-2xl text-xs uppercase tracking-wider transition-all duration-300 shadow-sm active:scale-95">Kassenschluss (Rot)</button>
         </div>
       </footer>
 
-      {/* GORGEOUS APPLE GLASSMORPHIC Z-REPORT MODAL */}
+      {/* Beleg Modal */}
       {showReportModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md p-4 animate-fade-in">
-          <div className="bg-white/95 max-w-md w-full rounded-3xl p-8 shadow-2xl border border-white/20 flex flex-col justify-between relative transform scale-100 transition-all">
-            
-            {/* Schließen Button */}
-            <button 
-              onClick={() => setShowReportModal(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-lg font-bold"
-            >
-              ✕
-            </button>
-
-            {/* Bon-Header */}
+          <div className="bg-white/95 max-w-md w-full rounded-3xl p-8 shadow-2xl border border-white/20 flex flex-col justify-between relative">
+            <button onClick={() => setShowReportModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-lg font-bold">✕</button>
             <div className="text-center border-b border-dashed border-gray-300 pb-4 mb-6">
               <span className="text-xs font-bold text-[#E6AF2E] tracking-widest uppercase bg-[#E6AF2E]/10 px-3 py-1 rounded-full">Kassenbericht</span>
               <h2 className="text-xl font-extrabold text-[#0D2B45] tracking-tight mt-3">{reportTitle}</h2>
-              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-1">St. Ursula Schulen Villingen • Schülerfirma</p>
+              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-1">St. Ursula Villingen</p>
             </div>
-
-            {/* Beleg-Körper */}
             <div className="flex flex-col gap-4 font-mono text-sm text-gray-700">
               <div className="flex justify-between border-b pb-2 text-xs text-gray-400 font-sans font-bold uppercase">
-                <span>Posten</span>
-                <span>Summe</span>
+                <span>Posten</span><span>Summe</span>
               </div>
-              
-              <div className="flex justify-between">
-                <span>Bediente Belege:</span>
-                <span className="font-bold font-sans">{reportData.count} Bons</span>
-              </div>
-
-              <div className="flex justify-between">
-                <span>Umsatz (Brutto):</span>
-                <span className="font-bold">{reportData.brutto.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>
-              </div>
-
-              <div className="flex justify-between text-xs text-gray-400 pl-4">
-                <span>dav. MwSt 7%:</span>
-                <span>{reportData.vat7.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>
-              </div>
-
-              <div className="flex justify-between text-xs text-gray-400 pl-4">
-                <span>dav. MwSt 19%:</span>
-                <span>{reportData.vat19.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>
-              </div>
-
-              <div className="flex justify-between border-t pt-2">
-                <span>Umsatz (Netto):</span>
-                <span className="font-bold">{reportData.netto.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>
-              </div>
-
-              <div className="flex justify-between text-gray-400">
-                <span>Pfand-Umsatz:</span>
-                <span>0,00 €</span>
-              </div>
-
-              <div className="flex justify-between border-t-2 border-dashed border-gray-300 pt-4 text-base font-bold text-[#0D2B45] font-sans">
-                <span>Soll-Bargeldbestand:</span>
-                <span>{reportData.brutto.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>
-              </div>
+              <div className="flex justify-between"><span>Bediente Belege:</span><span className="font-bold">{reportData.count} Bons</span></div>
+              <div className="flex justify-between"><span>Umsatz (Brutto):</span><span className="font-bold">{reportData.brutto.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span></div>
+              <div className="flex justify-between text-xs text-gray-400 pl-4"><span>dav. MwSt 7%:</span><span>{reportData.vat7.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span></div>
+              <div className="flex justify-between text-xs text-gray-400 pl-4"><span>dav. MwSt 19%:</span><span>{reportData.vat19.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span></div>
+              <div className="flex justify-between border-t pt-2"><span>Umsatz (Netto):</span><span className="font-bold">{reportData.netto.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span></div>
+              <div className="flex justify-between border-t-2 border-dashed border-gray-300 pt-4 text-base font-bold text-[#0D2B45] font-sans"><span>Soll-Bargeld:</span><span>{reportData.brutto.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span></div>
             </div>
-
-            {/* Bon-Footer mit Aktionsbuttons */}
             <div className="mt-8 border-t pt-6 flex flex-col gap-3 font-sans">
-              <p className="text-[10px] text-gray-400 text-center font-bold uppercase tracking-wider mb-2">
-                Generiert am {new Date().toLocaleDateString('de-DE')} • {new Date().toLocaleTimeString('de-DE')}
-              </p>
-              <button 
-                onClick={confirmReport}
-                className="w-full py-4 bg-[#0D2B45] hover:bg-[#163f61] text-white font-bold rounded-2xl shadow-md transition-all active:scale-95"
-              >
-                Bericht abschließen & archivieren
-              </button>
-              <button 
-                onClick={() => window.print()}
-                className="w-full py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold rounded-xl text-xs uppercase tracking-wider transition-all"
-              >
-                Bericht drucken (Z-Bon)
-              </button>
+              <button onClick={confirmReport} className="w-full py-4 bg-[#0D2B45] hover:bg-[#163f61] text-white font-bold rounded-2xl shadow-md transition-all active:scale-95">Bericht archivieren</button>
+              <button onClick={() => window.print()} className="w-full py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold rounded-xl text-xs uppercase tracking-wider transition-all">Bericht drucken</button>
             </div>
-
           </div>
         </div>
       )}
