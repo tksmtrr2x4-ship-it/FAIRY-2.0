@@ -7,17 +7,18 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "seed": "node dbSeed.js"  
+    "seed": "node dbSeed.js"
   },
   "dependencies": {
+    "mongoose": "^8.0.0",
     "next": "16.2.9",
     "react": "19.0.0",
     "react-dom": "19.0.0",
-    "mongoose": "^8.0.0"     
+    "recharts": "^3.8.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.0.0",
-    "tailwindcss": "^4.0.0",
-    "autoprefixer": "^10.4.0"
+    "autoprefixer": "^10.4.0",
+    "tailwindcss": "^4.0.0"
   }
 }
