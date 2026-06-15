@@ -1,3 +1,4 @@
+// app/pos/page.jsx
 'use client';
 import React, { useState, useEffect } from 'react';
 
@@ -7,22 +8,26 @@ export default function PosInterface() {
   const [cart, setCart] = useState([]);
   const [lastSaleId, setLastSaleId] = useState(null);
   const [liveTime, setLiveTime] = useState('');
+  const [liveDate, setLiveDate] = useState(''); // <--- Hydrations-sicherer State!
+
+  // Apple Toast Notification State
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
   // System-Konfigurationen
   const [config, setConfig] = useState({ bannerActive: false, bannerMessage: '', maintenanceActive: false });
 
-  // Berichts-States
+  // States für den Bericht
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportTitle, setReportTitle] = useState('');
   const [pendingPhase, setPendingPhase] = useState('');
   const [reportData, setReportData] = useState({ brutto: 0, netto: 0, vat7: 0, vat19: 0, pfand: 0, count: 0 });
 
-  // Live-Uhrzeit initialisieren
+  // Live-Uhrzeit & Datum absolut hydrations-sicher initialisieren
   useEffect(() => {
     const updateClock = () => {
       const now = new Date();
       setLiveTime(now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+      setLiveDate(now.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long' }));
     };
     updateClock();
     const interval = setInterval(updateClock, 1000);
@@ -67,6 +72,7 @@ export default function PosInterface() {
 
   const handleCheckout = async () => {
     if (cart.length === 0) return;
+
     const formattedItems = cart.map(item => ({
       productId: item.id,
       name: item.name,
@@ -82,15 +88,17 @@ export default function PosInterface() {
         body: JSON.stringify({ action: 'CHECKOUT', items: formattedItems })
       });
       const data = await res.json();
+      
       if (data.success) {
         setLastSaleId(data.sale._id);
         setCart([]);
         triggerToast("Einkauf erfolgreich gebucht!", "success");
       } else {
-        triggerToast("Fehler beim Buchen.", "error");
+        triggerToast("Fehler beim Speichern: " + (data.error || "Datenbankfehler"), "error");
       }
     } catch (err) {
-      triggerToast("Verbindungsfehler.", "error");
+      console.error(err);
+      triggerToast("Verbindungsfehler zur Datenbank.", "error");
     }
   };
 
@@ -109,7 +117,7 @@ export default function PosInterface() {
   };
 
   const prepareReport = async (phase) => {
-    const titles = { 'pause1': 'Bericht: 1. Große Pause', 'pause2': 'Bericht: 2. Große Pause', 'closed': 'Kassenschluss (Z-Bon)' };
+    const titles = { 'pause1': 'Abschlussbericht: 1. Große Pause', 'pause2': 'Abschlussbericht: 2. Große Pause', 'closed': 'Tagesabschluss (Z-Bon): Kassenschluss' };
     setPendingPhase(phase);
     setReportTitle(titles[phase]);
 
@@ -125,6 +133,9 @@ export default function PosInterface() {
           pfand: 0,
           count: data.summary.salesCount || 0
         });
+        setShowReportModal(true);
+      } else {
+        setReportData({ brutto: 0, netto: 0, vat7: 0, vat19: 0, pfand: 0, count: 0 });
         setShowReportModal(true);
       }
     } catch (err) {
@@ -142,7 +153,7 @@ export default function PosInterface() {
       const data = await res.json();
       if (data.success) {
         setShowReportModal(false);
-        triggerToast("Bericht erfolgreich archiviert!", "success");
+        triggerToast(`${reportTitle} archiviert!`, "success");
       }
     } catch (err) {
       console.error(err);
@@ -151,7 +162,6 @@ export default function PosInterface() {
 
   const totalCartPrice = cart.reduce((acc, item) => acc + (item.priceAtSale * item.quantity), 0);
 
-  // GORGEOUS APPLE MAINTENANCE SCREEN
   if (config.maintenanceActive) {
     return (
       <div className="min-h-screen bg-[#F5F5F7] flex flex-col items-center justify-center font-sans antialiased text-[#1D1D1F] p-6">
@@ -172,7 +182,7 @@ export default function PosInterface() {
 
   return (
     <div className="min-h-screen bg-[#F5F5F7] text-[#1D1D1F] font-sans antialiased flex flex-col selection:bg-[#0B2F5C] selection:text-white">
-      {/* Apple Header */}
+      {/* Header */}
       <header className="sticky top-0 z-40 backdrop-blur-md bg-white/75 border-b border-gray-200/50 px-8 py-4 flex justify-between items-center">
         <div className="flex items-center gap-6">
           <div>
@@ -188,7 +198,7 @@ export default function PosInterface() {
         <div className="text-right">
           <span className="text-sm font-bold text-gray-800 font-mono tracking-widest">{liveTime || '00:00:00'}</span>
           <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
-            {new Date().toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long' })}
+            {liveDate || 'Lade Datum...'}
           </p>
         </div>
       </header>
@@ -203,13 +213,15 @@ export default function PosInterface() {
       {/* Grid */}
       <div className="flex-1 grid grid-cols-12 gap-6 p-8">
         <main className="col-span-8 flex flex-col gap-6">
-          <input 
-            type="text" 
-            placeholder="Artikel suchen..." 
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full px-6 py-4 rounded-2xl border border-gray-200 bg-white text-base focus:outline-none focus:ring-4 focus:ring-[#0B2F5C]/10 focus:border-[#0B2F5C] transition-all duration-300 shadow-sm font-medium"
-          />
+          <div className="relative shadow-sm rounded-2xl">
+            <input 
+              type="text" 
+              placeholder="Artikel suchen..." 
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full px-6 py-4 rounded-2xl border border-gray-200 bg-white text-base focus:outline-none focus:ring-4 focus:ring-[#0B2F5C]/10 focus:border-[#0B2F5C] transition-all duration-300 shadow-sm font-medium placeholder-gray-400"
+            />
+          </div>
 
           {products.length === 0 ? (
             <div className="flex-1 bg-white border border-gray-100 rounded-3xl p-12 flex flex-col items-center justify-center text-center">
@@ -251,6 +263,12 @@ export default function PosInterface() {
                   <span className="font-bold text-sm text-[#0B2F5C]">{(item.priceAtSale * item.quantity).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>
                 </div>
               ))}
+              {cart.length === 0 && (
+                <div className="text-center py-16 text-gray-300 flex flex-col items-center">
+                  <span className="text-4xl mb-2">🛒</span>
+                  <p className="text-xs font-bold uppercase tracking-wider text-gray-400">Der Warenkorb ist leer</p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -277,15 +295,15 @@ export default function PosInterface() {
       <footer className="bg-white border-t border-gray-200 px-8 py-5 flex justify-between items-center gap-4">
         <div className="text-xs text-gray-400 font-bold uppercase tracking-wider">Schaltung verwalten</div>
         <div className="flex gap-4">
-          <button onClick={() => prepareReport('pause1')} className="px-6 py-3 bg-blue-500/10 text-blue-600 hover:bg-blue-500 hover:text-white font-bold rounded-2xl text-xs uppercase tracking-wider transition-all">Ende 1. Pause</button>
-          <button onClick={() => prepareReport('pause2')} className="px-6 py-3 bg-purple-500/10 text-purple-600 hover:bg-purple-500 hover:text-white font-bold rounded-2xl text-xs uppercase tracking-wider transition-all">Ende 2. Pause</button>
-          <button onClick={() => prepareReport('closed')} className="px-6 py-3 bg-red-500/10 text-red-600 hover:bg-red-500 hover:text-white font-bold rounded-2xl text-xs uppercase tracking-wider transition-all">Kassenschluss (Rot)</button>
+          <button onClick={() => prepareReport('pause1')} className="px-6 py-3 bg-blue-500/10 text-blue-600 hover:bg-blue-500 hover:text-white font-bold rounded-2xl text-xs uppercase tracking-wider transition-all duration-300 shadow-sm active:scale-95">Ende 1. Pause</button>
+          <button onClick={() => prepareReport('pause2')} className="px-6 py-3 bg-purple-500/10 text-purple-600 hover:bg-purple-500 hover:text-white font-bold rounded-2xl text-xs uppercase tracking-wider transition-all duration-300 shadow-sm active:scale-95">Ende 2. Pause</button>
+          <button onClick={() => prepareReport('closed')} className="px-6 py-3 bg-red-500/10 text-red-600 hover:bg-red-500 hover:text-white font-bold rounded-2xl text-xs uppercase tracking-wider transition-all duration-300 shadow-sm active:scale-95">Kassenschluss (Rot)</button>
         </div>
       </footer>
 
       {showReportModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md p-4">
-          <div className="bg-white/95 max-w-md w-full rounded-3xl p-8 shadow-2xl border border-white/20 relative">
+          <div className="bg-white/95 max-w-md w-full rounded-3xl p-8 shadow-2xl border border-white/20 relative animate-fade-in">
             <button onClick={() => setShowReportModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-lg font-bold">✕</button>
             <div className="text-center border-b border-dashed border-gray-300 pb-4 mb-6">
               <span className="text-xs font-bold text-[#F2B600] tracking-widest uppercase bg-[#F2B600]/10 px-3 py-1 rounded-full">Kassenbericht</span>
@@ -309,6 +327,7 @@ export default function PosInterface() {
         </div>
       )}
 
+      {/* GORGEOUS APPLE TOAST NOTIFICATION */}
       {toast.show && (
         <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl backdrop-blur-md border ${
           toast.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-800' : 'bg-red-500/10 border-red-500/20 text-red-800'

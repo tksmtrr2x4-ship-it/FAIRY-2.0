@@ -11,8 +11,9 @@ export default function AdminDashboard() {
   const [bestSellers, setBestSellers] = useState([]);
   const [products, setProducts] = useState([]);
   const [salesJournal, setSalesJournal] = useState([]);
-  const [selectedQuarter, setSelectedQuarter] = useState('q2'); // <--- HIER KORRIGIERT! Startet direkt mit dem 2. Quartal (Q2)
+  const [selectedQuarter, setSelectedQuarter] = useState('q2');
   const [liveTime, setLiveTime] = useState('');
+  const [liveDate, setLiveDate] = useState(''); // <--- Hydrations-sicherer State!
 
   // System-Config States
   const [bannerActive, setBannerActive] = useState(false);
@@ -39,11 +40,13 @@ export default function AdminDashboard() {
     setIsAuthenticated(false);
   };
 
+  // Live-Uhrzeit & Datum absolut hydrations-sicher initialisieren
   useEffect(() => {
     if (!isAuthenticated) return;
     const updateClock = () => {
       const now = new Date();
       setLiveTime(now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+      setLiveDate(now.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: 'short' }));
     };
     updateClock();
     const interval = setInterval(updateClock, 1000);
@@ -167,7 +170,7 @@ export default function AdminDashboard() {
         <div className="flex items-center gap-6">
           <div className="text-right">
             <span className="text-base font-bold text-gray-800 font-mono tracking-widest">{liveTime || '00:00:00'}</span>
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{new Date().toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: 'short' })}</p>
+            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{liveDate || 'Lade Datum...'}</p>
           </div>
           <button onClick={handleLogout} className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-xl text-xs uppercase tracking-wider transition-all">Abmelden</button>
           <select value={selectedQuarter} onChange={(e) => setSelectedQuarter(e.target.value)} className="bg-white border border-gray-200 px-4 py-2.5 rounded-2xl shadow-sm font-semibold text-gray-700 outline-none">
