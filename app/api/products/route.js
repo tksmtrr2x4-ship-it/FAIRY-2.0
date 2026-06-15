@@ -1,10 +1,8 @@
 import dbConnect from '@/lib/dbConnect';
-import '@/models/Product'; // Registriert das Modell global in Mongoose
 import mongoose from 'mongoose';
 import { NextResponse } from 'next/server';
 
-const Product = mongoose.model('Product');
-
+// Die originalen Daten aus dem PDF-Register (für Erst-Seeding)
 const initialProducts = [
   { nr: 1, name: "Himbeeren", group: "Unverpackt; Lebensmittel", basePrice: 2.50, vatRate: 7 },
   { nr: 2, name: "Studentenfutter", group: "Unverpackt; Lebensmittel", basePrice: 1.00, vatRate: 7 },
@@ -23,21 +21,22 @@ const initialProducts = [
   { nr: 15, name: "Gepa Schokolade (40g)", group: "Lebensmittel", basePrice: 1.60, vatRate: 7 },
   { nr: 16, name: "Mini Schoko (10g)", group: "Lebensmittel", basePrice: 0.55, vatRate: 7 },
   { nr: 17, name: "Die gute Schokolade (100g; Vollmilch)", group: "Lebensmittel", basePrice: 1.80, vatRate: 7 },
-  { nr: 18, name: "Die gute Schokolade (100g; Zartbitter)", group: "Lebensmittel", basePrice: 1.80, vatRate: 7 },
-  { nr: 20, name: "Tartufo", group: "Lebensmittel", basePrice: 0.80, vatRate: 7 },
+  { nr: 18, name: "Die gute Schokolade (100g; Zartbitter)", group: "Lebensmittel", basePrice: 1.60, vatRate: 7 },
+  { nr: 19, name: "Gepa Schokolade (40g; Erdbeere)", group: "Lebensmittel", basePrice: 0.80, vatRate: 7 },
+  { nr: 20, name: "Tartufo", group: "Lebensmittel", basePrice: 0.15, vatRate: 7 },
   { nr: 21, name: "ganz kleine Schokis", group: "Lebensmittel", basePrice: 0.15, vatRate: 7 },
-  { nr: 22, name: "Mascobado Schokolade", group: "Lebensmittel", basePrice: 0.60, vatRate: 7 },
+  { nr: 22, name: "vegane Schokolade", group: "Lebensmittel", basePrice: 2.80, vatRate: 7 },
   { nr: 23, name: "Kokosriegel", group: "Lebensmittel", basePrice: 1.50, vatRate: 7 },
   { nr: 24, name: "Barrita-Sesamriegel", group: "Lebensmittel", basePrice: 0.50, vatRate: 7 },
   { nr: 25, name: "Pfefferminzdrops", group: "Lebensmittel", basePrice: 0.55, vatRate: 7 },
   { nr: 26, name: "Lemonherzen, Schoko-Orangen-Taler", group: "Lebensmittel", basePrice: 2.50, vatRate: 7 },
   { nr: 27, name: "Cookies", group: "Lebensmittel", basePrice: 3.80, vatRate: 7 },
   { nr: 28, name: "Dobiltos", group: "Lebensmittel", basePrice: 2.00, vatRate: 7 },
-  { nr: 29, name: "Popquins", group: "Lebensmittel", basePrice: 1.80, vatRate: 7 },
+  { nr: 29, name: "Popquins", group: "Lebensmittel", basePrice: 3.00, vatRate: 7 },
   { nr: 30, name: "Kakao Amaribe (125g.)", group: "Lebensmittel", basePrice: 3.80, vatRate: 7 },
   { nr: 31, name: "Mascobado-Zucker 1kg", group: "Lebensmittel", basePrice: 8.00, vatRate: 7 },
   { nr: 32, name: "Vanille Schoten", group: "Lebensmittel", basePrice: 10.00, vatRate: 7 },
-  { nr: 33, name: "Faires Pfund Kakao", group: "Lebensmittel", basePrice: 6.00, vatRate: 7 },
+  { nr: 33, name: "Faires Pfund Kakao", group: "Lebensmittel", basePrice: 5.00, vatRate: 7 },
   { nr: 34, name: "A4 Heft (Einfach)", group: "Schreibwaren", basePrice: 0.70, vatRate: 19 },
   { nr: 35, name: "A4 heft (Doppel)", group: "Schreibwaren", basePrice: 0.90, vatRate: 19 },
   { nr: 36, name: "A4 Schnellhefter", group: "Schreibwaren", basePrice: 0.70, vatRate: 19 },
@@ -67,6 +66,7 @@ const initialProducts = [
 
 export async function GET() {
   await dbConnect();
+  const Product = mongoose.models.Product; // Direkt aus Mongoose geladen!
   try {
     let products = await Product.find({ active: true }).sort({ nr: 1 });
     if (products.length === 0) {
@@ -81,6 +81,7 @@ export async function GET() {
 
 export async function POST(req) {
   await dbConnect();
+  const Product = mongoose.models.Product; // Direkt aus Mongoose geladen!
   try {
     const body = await req.json();
     const { name, group, basePrice, vatRate } = body;

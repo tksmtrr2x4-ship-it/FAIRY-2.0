@@ -1,12 +1,10 @@
 import dbConnect from '@/lib/dbConnect';
+import mongoose from 'mongoose';
 import { NextResponse } from 'next/server';
-
-// WICHTIG: Mongoose muss beide Schemata kennen, um Beziehungsfehler ("ref: Product") zu vermeiden
-require('@/models/Product');
-const Sale = require('@/models/Sale');
 
 export async function GET() {
   await dbConnect();
+  const Sale = mongoose.models.Sale; // Direkt aus Mongoose geladen!
   try {
     const sales = await Sale.find().sort({ createdAt: -1 });
     return NextResponse.json({ success: true, sales });
@@ -17,11 +15,11 @@ export async function GET() {
 
 export async function POST(req) {
   await dbConnect();
+  const Sale = mongoose.models.Sale; // Direkt aus Mongoose geladen!
   try {
     const body = await req.json();
     const { action, saleId, items, statusType, localDate } = body;
 
-    // 1. KAUF ABSCHLIESSEN (Dauerhaft in MongoDB buchen)
     if (action === 'CHECKOUT') {
       const saleDate = localDate || new Date().toISOString().split('T')[0];
       
@@ -64,7 +62,6 @@ export async function POST(req) {
       return NextResponse.json({ success: true, sale: newSale });
     }
 
-    // 2. STORNO-FUNKTION
     if (action === 'STORNO') {
       const updatedSale = await Sale.findByIdAndUpdate(
         saleId, 
@@ -74,7 +71,6 @@ export async function POST(req) {
       return NextResponse.json({ success: true, sale: updatedSale });
     }
 
-    // 3. PAUSENSCHLUSS / KASSENSCHLUSS
     if (action === 'UPDATE_STATUS') {
       const today = localDate || new Date().toISOString().split('T')[0];
       await Sale.updateMany(

@@ -1,21 +1,18 @@
 import dbConnect from '@/lib/dbConnect';
+import mongoose from 'mongoose';
 import { NextResponse } from 'next/server';
-
-// WICHTIG: Mongoose muss beide Schemata kennen, um Beziehungsfehler ("ref: Product") zu vermeiden
-require('@/models/Product'); 
-const Sale = require('@/models/Sale');
 
 export async function GET(req) {
   await dbConnect();
+  const Sale = mongoose.models.Sale; // Direkt aus Mongoose geladen!
   try {
     const url = new URL(req.url);
     const quarter = url.searchParams.get('quarter'); // 'testphase', 'q1', 'q2'
-    const dateParam = url.searchParams.get('date');  // Lokales Datum im Format YYYY-MM-DD
+    const dateParam = url.searchParams.get('date');
     
     let query = { storno: false };
 
     if (quarter) {
-      // DYNAMISCHE DATUMSBEREICHS-ABRECHNUNG
       if (quarter === 'testphase') {
         query.saleDate = { $gte: '2025-12-15', $lte: '2025-12-31' };
       } else if (quarter === 'q1') {
@@ -24,7 +21,6 @@ export async function GET(req) {
         query.saleDate = { $gte: '2026-03-13', $lte: '2026-06-11' };
       }
     } else {
-      // Für das Z-Bon-Modal der Live-Kasse nehmen wir die heutigen, aktiven Verkäufe
       const today = dateParam || new Date().toISOString().split('T')[0];
       query.saleDate = today;
       query.status = 'active';

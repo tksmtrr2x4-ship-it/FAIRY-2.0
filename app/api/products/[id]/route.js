@@ -1,11 +1,10 @@
 import dbConnect from '@/lib/dbConnect';
+import mongoose from 'mongoose';
 import { NextResponse } from 'next/server';
-
-// Sicheres Laden des Modells im CommonJS-Format
-const Product = require('@/models/Product');
 
 export async function PUT(req, { params }) {
   await dbConnect();
+  const Product = mongoose.models.Product; // Direkt aus Mongoose geladen!
   try {
     const { id } = params;
     const { price, name, group, vatRate } = await req.json();
@@ -25,6 +24,7 @@ export async function PUT(req, { params }) {
 
 export async function DELETE(req, { params }) {
   await dbConnect();
+  const Product = mongoose.models.Product; // Direkt aus Mongoose geladen!
   try {
     const { id } = params;
     const deletedProduct = await Product.findByIdAndUpdate(id, { active: false }, { new: true });
