@@ -1,20 +1,26 @@
 import dbConnect from '@/lib/dbConnect';
-import rawSale from '@/models/Sale';
 import { NextResponse } from 'next/server';
 
-const Sale = rawSale.default || rawSale;
+const Sale = require('@/models/Sale');
 
 export async function GET(req) {
   await dbConnect();
   try {
     const url = new URL(req.url);
-    const quarter = url.searchParams.get('quarter');
+    const quarter = url.searchParams.get('quarter'); // 'testphase', 'q1', 'q2'
     const dateParam = url.searchParams.get('date');
     
     let query = { storno: false };
 
     if (quarter) {
-      query.status = quarter;
+      // DYNAMISCHE DATUMSBEREICHS-ABRECHNUNG (Keine harten Status-Labels mehr!)
+      if (quarter === 'testphase') {
+        query.saleDate = { $gte: '2025-12-15', $lte: '2025-12-31' };
+      } else if (quarter === 'q1') {
+        query.saleDate = { $gte: '2026-01-01', $lte: '2026-03-12' };
+      } else if (quarter === 'q2') {
+        query.saleDate = { $gte: '2026-03-13', $lte: '2026-06-11' };
+      }
     } else {
       const today = dateParam || new Date().toISOString().split('T')[0];
       query.saleDate = today;
