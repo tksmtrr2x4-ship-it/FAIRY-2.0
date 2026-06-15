@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "seed": "node dbSeed.js"
+    "seed": "node dbSeed.js",
+    "seed-history": "node dbSeedHistorical.js"
   },
   "dependencies": {
     "mongoose": "^8.0.0",

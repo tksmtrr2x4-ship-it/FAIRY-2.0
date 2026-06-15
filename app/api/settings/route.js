@@ -12,12 +12,15 @@ const Settings = mongoose.models.Settings || mongoose.model('Settings', Settings
 export async function GET() {
   await dbConnect();
   try {
-    let banner = await Settings.findOne({ key: 'actionBanner' });
-    if (!banner) {
-      banner = new Settings({ key: 'actionBanner', value: { active: false, message: 'Willkommen im Weltladen St. Ursula!' } });
-      await banner.save();
+    let config = await Settings.findOne({ key: 'siteConfig' });
+    if (!config) {
+      config = new Settings({ 
+        key: 'siteConfig', 
+        value: { bannerActive: false, bannerMessage: 'Willkommen!', maintenanceActive: false } 
+      });
+      await config.save();
     }
-    return NextResponse.json({ success: true, settings: banner.value });
+    return NextResponse.json({ success: true, settings: config.value });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -27,11 +30,11 @@ export async function POST(req) {
   await dbConnect();
   try {
     const body = await req.json();
-    const { active, message } = body;
+    const { bannerActive, bannerMessage, maintenanceActive } = body;
 
     const updated = await Settings.findOneAndUpdate(
-      { key: 'actionBanner' },
-      { value: { active, message } },
+      { key: 'siteConfig' },
+      { value: { bannerActive, bannerMessage, maintenanceActive } },
       { new: true, upsert: true }
     );
 
