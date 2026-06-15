@@ -11,7 +11,7 @@ export default function AdminDashboard() {
   const [bestSellers, setBestSellers] = useState([]);
   const [products, setProducts] = useState([]);
   const [salesJournal, setSalesJournal] = useState([]);
-  const [selectedQuarter, setSelectedQuarter] = useState('2026-Q2');
+  const [selectedQuarter, setSelectedQuarter] = useState('q2'); // <--- HIER KORRIGIERT! Startet direkt mit dem 2. Quartal (Q2)
   const [liveTime, setLiveTime] = useState('');
 
   // System-Config States
@@ -111,7 +111,6 @@ export default function AdminDashboard() {
     if (res.ok) loadData();
   };
 
-  // SYSTEMKONFIGURATION SPEICHERN (Aktionsbanner & Wartungsmodus)
   const handleSaveConfig = async (e) => {
     e.preventDefault();
     const res = await fetch('/api/settings', {
@@ -171,15 +170,11 @@ export default function AdminDashboard() {
             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{new Date().toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: 'short' })}</p>
           </div>
           <button onClick={handleLogout} className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-xl text-xs uppercase tracking-wider transition-all">Abmelden</button>
-          <select 
-  value={selectedQuarter} 
-  onChange={(e) => setSelectedQuarter(e.target.value)}
-  className="bg-white border border-gray-200 px-4 py-2.5 rounded-2xl shadow-sm font-semibold text-gray-700 outline-none"
->
-  <option value="testphase">Testphase (15.12.25 - 31.01.26)</option>
-  <option value="q1">1. Quartal (Q1) (01.01.26 - 12.03.26)</option>
-  <option value="q2">2. Quartal (Q2) (12.03.26 - 11.06.26)</option>
-</select>
+          <select value={selectedQuarter} onChange={(e) => setSelectedQuarter(e.target.value)} className="bg-white border border-gray-200 px-4 py-2.5 rounded-2xl shadow-sm font-semibold text-gray-700 outline-none">
+            <option value="testphase">Testphase (15.12.25 - 31.01.26)</option>
+            <option value="q1">1. Quartal (Q1) (01.01.26 - 12.03.26)</option>
+            <option value="q2">2. Quartal (Q2) (12.03.26 - 11.06.26)</option>
+          </select>
         </div>
       </header>
 
@@ -211,7 +206,7 @@ export default function AdminDashboard() {
           <form onSubmit={handleSaveConfig} className="flex flex-col gap-4 mt-4 h-full justify-between">
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between bg-[#F5F5F7] p-3 rounded-xl border">
-                <span className="text-xs font-bold uppercase text-gray-500 tracking-wider">Aktionsbanner einschalten?</span>
+                <span className="text-xs font-bold uppercase text-gray-500 tracking-wider">Aktionsbanner anzeigen?</span>
                 <input type="checkbox" checked={bannerActive} onChange={(e) => setBannerActive(e.target.checked)} className="h-5 w-5 text-[#0B2F5C] focus:ring-[#0B2F5C]" />
               </div>
               <div className="flex items-center justify-between bg-red-50 p-3 rounded-xl border border-red-100">
