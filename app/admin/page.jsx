@@ -1,22 +1,49 @@
+// app/admin/page.jsx
 'use client';
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function AdminDashboard() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [passcode, setPasscode] = useState('');
+  
   const [stats, setStats] = useState({ totalRevenue: 0, salesCount: 0, totalNetto: 0 });
   const [bestSellers, setBestSellers] = useState([]);
   const [products, setProducts] = useState([]);
+  const [salesJournal, setSalesJournal] = useState([]); // Journal State
   const [selectedQuarter, setSelectedQuarter] = useState('2026-Q2');
   const [liveTime, setLiveTime] = useState('');
 
-  // Formular-State für neues Produkt
-  const [newName, setNewName] = useState('');
-  const [newGroup, setNewGroup] = useState('Lebensmittel');
-  const [newPrice, setNewPrice] = useState('');
-  const [newVat, setNewVat] = useState(7);
+  // Banner State
+  const [bannerActive, setBannerActive] = useState(false);
+  const [bannerMessage, setBannerMessage] = useState('');
+
+  // Passwort-Sperre prüfen
+  useEffect(() => {
+    const auth = localStorage.getItem('admin_auth');
+    if (auth === 'true') {
+      setIsAuthenticated(true);
+    }
+  }, []);
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    if (passcode === 'StUrsulaWeltladen2026') {
+      localStorage.setItem('admin_auth', 'true');
+      setIsAuthenticated(true);
+    } else {
+      alert("Falsches Admin-Kennwort!");
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('admin_auth');
+    setIsAuthenticated(false);
+  };
 
   // Live-Uhrzeit initialisieren
   useEffect(() => {
+    if (!isAuthenticated) return;
     const updateClock = () => {
       const now = new Date();
       setLiveTime(now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
@@ -24,9 +51,9 @@ export default function AdminDashboard() {
     updateClock();
     const interval = setInterval(updateClock, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isAuthenticated]);
 
-  // Statistiken und Produktregister laden
+  // Daten & Bannerzustand laden
   const loadData = () => {
     fetch(`/api/admin/stats?quarter=${selectedQuarter}`)
       .then(res => res.json())
@@ -42,13 +69,31 @@ export default function AdminDashboard() {
         if (data.products) setProducts(data.products);
       })
       .catch(err => console.error(err));
+
+    fetch('/api/sales')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.sales) setSalesJournal(data.sales);
+      })
+      .catch(err => console.error(err));
+
+    fetch('/api/settings')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.settings) {
+          setBannerActive(data.settings.active);
+          setBannerMessage(data.settings.message);
+        }
+      })
+      .catch(err => console.error(err));
   };
 
   useEffect(() => {
-    loadData();
-  }, [selectedQuarter]);
+    if (isAuthenticated) {
+      loadData();
+    }
+  }, [selectedQuarter, isAuthenticated]);
 
-  // CRUD: Preis live im Register anpassen
   const handlePriceUpdate = async (id, newPrice) => {
     if (!newPrice || isNaN(newPrice)) return;
     const res = await fetch(`/api/products/${id}`, {
@@ -56,50 +101,84 @@ export default function AdminDashboard() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ price: parseFloat(newPrice) })
     });
-    if (res.ok) {
-      loadData();
-    }
+    if (res.ok) loadData();
   };
 
-  // CRUD: Neues Produkt anlegen
   const handleAddProduct = async (e) => {
     e.preventDefault();
-    if (!newName || !newPrice) return;
-
     const res = await fetch('/api/products', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: newName,
-        group: newGroup,
-        basePrice: parseFloat(newPrice),
-        vatRate: parseInt(newVat)
-      })
+      body: JSON.stringify({ name: e.target.pname.value, group: e.target.pgroup.value, basePrice: parseFloat(e.target.pprice.value), vatRate: parseInt(e.target.pvat.value) })
     });
-
     if (res.ok) {
-      setNewName('');
-      setNewPrice('');
+      e.target.reset();
       loadData();
-      alert("Produkt erfolgreich hinzugefügt!");
+      alert("Produkt hinzugefügt!");
     }
   };
 
-  // CRUD: Produkt löschen (Soft-Delete)
   const handleDeleteProduct = async (id) => {
-    if (!confirm("Möchtest du dieses Produkt wirklich aus dem Register löschen?")) return;
-    const res = await fetch(`/api/products/${id}`, {
-      method: 'DELETE'
-    });
+    if (!confirm("Produkt wirklich löschen?")) return;
+    const res = await fetch(`/api/products/${id}`, { method: 'DELETE' });
     if (res.ok) {
       loadData();
-      alert("Produkt wurde gelöscht.");
     }
   };
+
+  // BANNER-EINSTELLUNGEN SPEICHERN
+  const handleSaveBanner = async (e) => {
+    e.preventDefault();
+    const res = await fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ active: bannerActive, message: bannerMessage })
+    });
+    if (res.ok) {
+      alert("Aktionsbanner erfolgreich aktualisiert!");
+    }
+  };
+
+  // JOURNAL: JEDEN BON NACHTRÄGLICH STORNIEREN
+  const handleJournalStorno = async (saleId) => {
+    if (!confirm("Möchtest du diesen Beleg wirklich nachträglich stornieren? Der Umsatz wird sofort aus allen Berichten abgezogen.")) return;
+    const res = await fetch('/api/sales', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'STORNO', saleId })
+    });
+    const data = await res.json();
+    if (data.success) {
+      loadData();
+      alert("Beleg erfolgreich storniert!");
+    }
+  };
+
+  // RENDER PASSWORT GATE
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[#F5F5F7] flex flex-col items-center justify-center font-sans">
+        <form onSubmit={handleLogin} className="bg-white/80 backdrop-blur-md p-10 rounded-3xl shadow-xl max-w-sm w-full border border-white/20 text-center">
+          <span className="text-4xl mb-4 block">🔒</span>
+          <h2 className="text-xl font-bold text-[#0D2B45] mb-2 tracking-tight">Admin-Bereich geschützt</h2>
+          <p className="text-xs text-gray-400 mb-6 font-medium uppercase tracking-wider">St. Ursula Weltladen Villingen</p>
+          <input 
+            type="password" 
+            placeholder="Kennwort eingeben..."
+            value={passcode}
+            onChange={(e) => setPasscode(e.target.value)}
+            className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-4 focus:ring-[#0D2B45]/10 focus:border-[#0D2B45] text-center font-bold tracking-widest mb-4"
+          />
+          <button type="submit" className="w-full py-3.5 bg-[#0D2B45] hover:bg-[#153e61] text-white font-bold rounded-2xl transition-all active:scale-95 shadow-md">
+            Entsperren
+          </button>
+        </form>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F5F5F7] text-[#1D1D1F] p-8 font-sans antialiased">
-      {/* Admin Navigation Bar */}
       <header className="flex justify-between items-center mb-8 border-b pb-6 border-gray-200">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight text-[#0D2B45]">Systemsteuerung</h1>
@@ -110,155 +189,146 @@ export default function AdminDashboard() {
             <span className="text-base font-bold text-gray-800 font-mono tracking-widest">{liveTime || '00:00:00'}</span>
             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{new Date().toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: 'short' })}</p>
           </div>
-          <select 
-            value={selectedQuarter} 
-            onChange={(e) => setSelectedQuarter(e.target.value)}
-            className="bg-white border border-gray-200 px-4 py-2.5 rounded-2xl shadow-sm focus:ring-4 focus:ring-[#0D2B45]/10 focus:border-[#0D2B45] text-sm font-semibold text-gray-700 outline-none transition-all"
-          >
+          <button onClick={handleLogout} className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-xl text-xs uppercase tracking-wider transition-all">Abmelden</button>
+          <select value={selectedQuarter} onChange={(e) => setSelectedQuarter(e.target.value)} className="bg-white border border-gray-200 px-4 py-2.5 rounded-2xl shadow-sm font-semibold text-gray-700 outline-none">
             <option value="2026-Q1">1. Quartal 2026</option>
             <option value="2026-Q2">2. Quartal 2026</option>
-            <option value="2026-Q3">3. Quartal 2026</option>
           </select>
         </div>
       </header>
 
-      {/* KPI Dashboard Widgets */}
+      {/* KPI Dashboard */}
       <div className="grid grid-cols-3 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm transition-all hover:shadow-md">
-          <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Umsatz (Brutto)</p>
-          <p className="text-3xl font-extrabold text-[#0D2B45] mt-2">
-            {stats.totalRevenue.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
-          </p>
-        </div>
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm transition-all hover:shadow-md">
-          <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Umsatz abzg. MwSt. (Netto)</p>
-          <p className="text-3xl font-extrabold text-[#E6AF2E] mt-2">
-            {stats.totalNetto?.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }) || '0,00 €'}
-          </p>
-        </div>
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm transition-all hover:shadow-md">
-          <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Kassierte Belege</p>
-          <p className="text-3xl font-extrabold mt-2 text-gray-700">{stats.salesCount} Belege</p>
-        </div>
+        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm"><p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Umsatz (Brutto)</p><p className="text-3xl font-extrabold text-[#0D2B45] mt-2">{stats.totalRevenue.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</p></div>
+        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm"><p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Umsatz (Netto)</p><p className="text-3xl font-extrabold text-[#E6AF2E] mt-2">{stats.totalNetto?.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }) || '0,00 €'}</p></div>
+        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm"><p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Belege gesamt</p><p className="text-3xl font-extrabold mt-2 text-gray-700">{stats.salesCount} Belege</p></div>
       </div>
 
       <div className="grid grid-cols-12 gap-8">
         {/* Diagramm */}
-        <section className="col-span-5 bg-white p-6 rounded-3xl border border-gray-200/50 shadow-sm flex flex-col justify-between">
-          <h2 className="text-lg font-bold text-[#0D2B45] mb-6 tracking-tight">Best-Selling Products</h2>
+        <section className="col-span-6 bg-white p-6 rounded-3xl border border-gray-200/50 shadow-sm h-[380px] flex flex-col justify-between">
+          <h2 className="text-lg font-bold text-[#0D2B45] mb-6">Best-Selling Products</h2>
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={bestSellers}>
-                <XAxis dataKey="name" tick={{ fontSize: 9, fill: '#86868B' }} axisLine={false} tickLine={false} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#86868B' }} />
-                <Tooltip cursor={{ fill: 'rgba(13,43,69,0.02)' }} />
+                <XAxis dataKey="name" tick={{ fontSize: 9, fill: '#86868B' }} />
+                <YAxis />
+                <Tooltip />
                 <Bar dataKey="totalSold" fill="#0D2B45" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </section>
 
-        {/* Neues Produkt anlegen */}
-        <section className="col-span-7 bg-white p-6 rounded-3xl border border-gray-200/50 shadow-sm">
-          <h2 className="text-lg font-bold text-[#0D2B45] mb-6 tracking-tight">Neues Produkt hinzufügen</h2>
-          <form onSubmit={handleAddProduct} className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2">Produktname</label>
+        {/* Banner Steuerung */}
+        <section className="col-span-6 bg-white p-6 rounded-3xl border border-gray-200/50 shadow-sm h-[380px] flex flex-col justify-between">
+          <h2 className="text-lg font-bold text-[#0D2B45]">Aktionsbanner an Kasse steuern</h2>
+          <form onSubmit={handleSaveBanner} className="flex flex-col gap-4 mt-4 h-full justify-between">
+            <div className="flex items-center gap-4">
+              <span className="text-sm font-bold text-gray-600">Aktionsbanner anzeigen?</span>
               <input 
-                type="text" 
-                value={newName} 
-                onChange={(e) => setNewName(e.target.value)} 
-                placeholder="z.B. Faire Schokolade"
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-4 focus:ring-[#0D2B45]/5 focus:border-[#0D2B45] font-medium"
+                type="checkbox" 
+                checked={bannerActive} 
+                onChange={(e) => setBannerActive(e.target.checked)}
+                className="h-6 w-6 text-[#0D2B45] border-gray-300 rounded focus:ring-[#0D2B45]" 
               />
             </div>
             <div>
-              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2">Kategorie</label>
-              <select 
-                value={newGroup} 
-                onChange={(e) => setNewGroup(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-4 focus:ring-[#0D2B45]/5 focus:border-[#0D2B45] font-medium text-gray-700"
-              >
-                <option value="Lebensmittel">Lebensmittel</option>
-                <option value="Unverpackt; Lebensmittel">Unverpackt; Lebensmittel</option>
-                <option value="Schreibwaren">Schreibwaren</option>
-                <option value="Sonstige">Sonstige</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2">Standardpreis (€)</label>
-              <input 
-                type="number" 
-                step="0.05"
-                value={newPrice} 
-                onChange={(e) => setNewPrice(e.target.value)} 
-                placeholder="1,50"
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-4 focus:ring-[#0D2B45]/5 focus:border-[#0D2B45] font-medium"
+              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2">Banner Nachricht</label>
+              <textarea 
+                value={bannerMessage} 
+                onChange={(e) => setBannerMessage(e.target.value)} 
+                rows="3"
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 font-medium"
+                placeholder="Heute 10% Rabatt auf alle fairen Produkte!"
               />
             </div>
-            <div>
-              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2">MwSt-Satz (%)</label>
-              <select 
-                value={newVat} 
-                onChange={(e) => setNewVat(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-4 focus:ring-[#0D2B45]/5 focus:border-[#0D2B45] font-medium text-gray-700"
-              >
-                <option value={7}>7% (Lebensmittel)</option>
-                <option value={19}>19% (Schreibwaren/Sonstige)</option>
-              </select>
-            </div>
-            <button 
-              type="submit" 
-              className="col-span-2 mt-2 py-3.5 bg-[#0D2B45] hover:bg-[#1a4163] text-white font-bold rounded-xl shadow-md transition-all active:scale-98"
-            >
-              Artikel anlegen
-            </button>
+            <button type="submit" className="w-full py-3.5 bg-[#E6AF2E] hover:bg-[#d49e1e] text-white font-bold rounded-2xl transition-all">Einstellungen speichern</button>
           </form>
         </section>
 
-        {/* Live-Produktregister (Bearbeitbar) */}
-        <section className="col-span-12 bg-white p-6 rounded-3xl border border-gray-200/50 shadow-sm flex flex-col">
-          <h2 className="text-lg font-bold text-[#0D2B45] mb-4 tracking-tight">Editierbares Produktregister</h2>
-          <div className="overflow-y-auto max-h-96 pr-2">
+        {/* Neues Produkt anlegen */}
+        <section className="col-span-12 bg-white p-6 rounded-3xl border border-gray-200/50 shadow-sm">
+          <h2 className="text-lg font-bold text-[#0D2B45] mb-6">Neues Produkt hinzufügen</h2>
+          <form onSubmit={handleAddProduct} className="grid grid-cols-4 gap-4">
+            <input type="text" name="pname" placeholder="Produktname" className="px-4 py-3 rounded-xl border font-medium" required />
+            <select name="pgroup" className="px-4 py-3 rounded-xl border font-medium"><option value="Lebensmittel">Lebensmittel</option><option value="Unverpackt; Lebensmittel">Unverpackt; Lebensmittel</option><option value="Schreibwaren">Schreibwaren</option><option value="Sonstige">Sonstige</option></select>
+            <input type="number" step="0.05" name="pprice" placeholder="Preis (€)" className="px-4 py-3 rounded-xl border font-medium" required />
+            <select name="pvat" className="px-4 py-3 rounded-xl border font-medium"><option value={7}>7% (Essen)</option><option value={19}>19% (Zubehör)</option></select>
+            <button type="submit" className="col-span-4 py-3.5 bg-[#0D2B45] hover:bg-[#1a4163] text-white font-bold rounded-xl shadow-md">Produkt hinzufügen</button>
+          </form>
+        </section>
+
+        {/* Editierbares Produktregister */}
+        <section className="col-span-12 bg-white p-6 rounded-3xl border border-gray-200/50 shadow-sm">
+          <h2 className="text-lg font-bold text-[#0D2B45] mb-4">Editierbares Produktregister</h2>
+          <div className="overflow-y-auto max-h-72">
+            <table className="w-full text-left border-collapse">
+              <thead><tr className="border-b text-xs text-gray-400 uppercase tracking-wider font-bold"><th className="py-3">Nr.</th><th>Bezeichnung</th><th>Warengruppe</th><th className="text-center">MwSt.</th><th className="text-right">Preis (€)</th><th className="text-right">Aktionen</th></tr></thead>
+              <tbody>
+                {products.map((p) => (
+                  <tr key={p._id} className="border-b text-sm"><td className="py-3 font-mono text-xs text-gray-400">{p.nr}</td><td className="font-bold text-gray-800">{p.name}</td><td><span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full uppercase">{p.group}</span></td><td className="text-center text-gray-500 font-mono">{p.vatRate}%</td><td className="text-right py-1"><input type="number" step="0.05" defaultValue={p.basePrice} onBlur={(e) => handlePriceUpdate(p._id, e.target.value)} className="w-20 text-right border rounded-xl px-2 py-1 font-bold text-gray-800" /></td><td className="text-right py-1"><button onClick={() => handleDeleteProduct(p._id)} className="px-3 py-1 bg-red-50 text-red-600 font-bold rounded-lg text-xs uppercase tracking-wider">Löschen</button></td></tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {/* MASTER-TRANSAKTIONSJOURNAL (STORNOMÖGLICHKEIT) */}
+        <section className="col-span-12 bg-white p-6 rounded-3xl border border-gray-200/50 shadow-sm">
+          <h2 className="text-lg font-bold text-[#0D2B45] mb-4">Transaktionsjournal</h2>
+          <p className="text-xs text-gray-400 mb-6 font-medium">Liste aller bisher getätigten Verkäufe. Jeder Bon kann nachträglich storniert werden.</p>
+          <div className="overflow-y-auto max-h-96">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-gray-100 text-xs text-gray-400 uppercase tracking-wider font-bold">
-                  <th className="py-3">Nr.</th>
-                  <th>Produktbezeichnung</th>
-                  <th>Warengruppe</th>
-                  <th className="text-center">MwSt.</th>
-                  <th className="text-right">Preis (€)</th>
+                <tr className="border-b text-xs text-gray-400 uppercase tracking-wider font-bold">
+                  <th className="py-3">Datum & Uhrzeit</th>
+                  <th>Bon-ID</th>
+                  <th>Artikel</th>
+                  <th>Status</th>
+                  <th className="text-right">Summe (Brutto)</th>
                   <th className="text-right">Aktionen</th>
                 </tr>
               </thead>
               <tbody>
-                {products.map((p) => (
-                  <tr key={p._id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors text-sm">
-                    <td className="py-3 font-mono text-xs text-gray-400">{p.nr}</td>
-                    <td className="font-bold text-gray-800">{p.name}</td>
+                {salesJournal.map((sale) => (
+                  <tr key={sale._id} className={`border-b text-sm ${sale.storno ? 'bg-red-50/30 line-through text-gray-400' : ''}`}>
+                    <td className="py-3 font-mono text-xs">{new Date(sale.createdAt).toLocaleString('de-DE')}</td>
+                    <td className="font-mono text-xs text-gray-400">{sale._id.slice(-6).toUpperCase()}</td>
                     <td>
-                      <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full uppercase">{p.group}</span>
+                      <div className="flex flex-col gap-1">
+                        {sale.items.map((item, i) => (
+                          <span key={i} className="text-xs font-semibold">
+                            {item.quantity}x {item.name} ({item.priceAtSale.toFixed(2)} €)
+                          </span>
+                        ))}
+                      </div>
                     </td>
-                    <td className="text-center text-gray-500 font-mono">{p.vatRate}%</td>
-                    <td className="text-right py-1">
-                      <input 
-                        type="number" 
-                        step="0.05"
-                        defaultValue={p.basePrice}
-                        onBlur={(e) => handlePriceUpdate(p._id, e.target.value)}
-                        className="w-20 text-right border border-gray-200 rounded-xl px-2 py-1 focus:outline-none focus:ring-2 focus:ring-[#0D2B45]/20 focus:border-[#0D2B45] font-bold text-gray-800"
-                      />
+                    <td>
+                      {sale.storno ? (
+                        <span className="text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full uppercase">Storniert</span>
+                      ) : (
+                        <span className="text-[10px] font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full uppercase">{sale.status}</span>
+                      )}
                     </td>
-                    <td className="text-right py-1">
-                      <button 
-                        onClick={() => handleDeleteProduct(p._id)}
-                        className="px-3 py-1 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-lg text-xs transition-all uppercase tracking-wider"
-                      >
-                        Löschen
-                      </button>
+                    <td className="text-right font-bold text-[#0D2B45]">{sale.totalBrutto.toFixed(2)} €</td>
+                    <td className="text-right py-2">
+                      {!sale.storno && (
+                        <button 
+                          onClick={() => handleJournalStorno(sale._id)}
+                          className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-600 font-bold rounded-lg text-xs uppercase tracking-wider"
+                        >
+                          Stornieren
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
+                {salesJournal.length === 0 && (
+                  <tr>
+                    <td colSpan="6" className="text-center py-12 text-gray-400">Keine Transaktionen gefunden</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
