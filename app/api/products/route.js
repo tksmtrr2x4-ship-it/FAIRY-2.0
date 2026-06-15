@@ -2,7 +2,8 @@ import dbConnect from '@/lib/dbConnect';
 import mongoose from 'mongoose';
 import { NextResponse } from 'next/server';
 
-// Die originalen Daten aus dem PDF-Register (für Erst-Seeding)
+const Product = mongoose.models.Product;
+
 const initialProducts = [
   { nr: 1, name: "Himbeeren", group: "Unverpackt; Lebensmittel", basePrice: 2.50, vatRate: 7 },
   { nr: 2, name: "Studentenfutter", group: "Unverpackt; Lebensmittel", basePrice: 1.00, vatRate: 7 },
@@ -18,7 +19,7 @@ const initialProducts = [
   { nr: 12, name: "Gummibärchen, Fruchtfritte, vegane Beeren…", group: "Unverpackt; Lebensmittel", basePrice: 1.00, vatRate: 7 },
   { nr: 13, name: "Schokolade aller Sorten", group: "Unverpackt; Lebensmittel", basePrice: 1.00, vatRate: 7 },
   { nr: 14, name: "Gepa Schokoriegel", group: "Lebensmittel", basePrice: 1.60, vatRate: 7 },
-  { nr: 15, name: "Gepa Schokolade (40g)", group: "Lebensmittel", basePrice: 1.60, vatRate: 7 },
+  { nr: 15, name: "Weihnachtsschokolade Gepa (40g)", group: "Lebensmittel", basePrice: 1.70, vatRate: 7 },
   { nr: 16, name: "Mini Schoko (10g)", group: "Lebensmittel", basePrice: 0.55, vatRate: 7 },
   { nr: 17, name: "Die gute Schokolade (100g; Vollmilch)", group: "Lebensmittel", basePrice: 1.80, vatRate: 7 },
   { nr: 18, name: "Die gute Schokolade (100g; Zartbitter)", group: "Lebensmittel", basePrice: 1.60, vatRate: 7 },
@@ -49,26 +50,25 @@ const initialProducts = [
   { nr: 43, name: "Klebestift", group: "Schreibwaren", basePrice: 2.00, vatRate: 19 },
   { nr: 44, name: "Korrekturroller", group: "Schreibwaren", basePrice: 3.50, vatRate: 19 },
   { nr: 45, name: "Kerze", group: "Sonstige", basePrice: 6.00, vatRate: 19 },
-  { nr: 46, name: "Cup StU", group: "Sonstige", basePrice: 1.50, vatRate: 19 },
-  { nr: 47, name: "Vesperdose", group: "Sonstige", basePrice: 10.00, vatRate: 19 },
-  { nr: 48, name: "Glaspfand-Einnahme", group: "Sonstige", basePrice: 1.00, vatRate: 19 },
-  { nr: 49, name: "Flaschen Pfand-Einnahme (Limo & Seezüngle)", group: "Sonstige", basePrice: 0.20, vatRate: 19 },
-  { nr: 50, name: "Glaspfand-Ausgabe", group: "Sonstige", basePrice: -1.00, vatRate: 19 },
-  { nr: 51, name: "Flaschen Pfand-Ausgabe (Limo & Seezüngle)", group: "Sonstige", basePrice: -0.20, vatRate: 19 },
-  { nr: 52, name: "Porridge (3 Toppings)", group: "Lebensmittel", basePrice: 1.50, vatRate: 7 },
-  { nr: 53, name: "Nikolaus", group: "Lebensmittel", basePrice: 2.80, vatRate: 7 },
-  { nr: 54, name: "Limo", group: "Lebensmittel", basePrice: 1.50, vatRate: 19 },
-  { nr: 55, name: "College-Block (80 Blatt)", group: "Schreibwaren", basePrice: 1.50, vatRate: 19 },
-  { nr: 56, name: "Crossita", group: "Lebensmittel", basePrice: 1.50, vatRate: 7 },
-  { nr: 57, name: "Mandel Tonka", group: "Lebensmittel", basePrice: 1.00, vatRate: 7 },
-  { nr: 58, name: "Fair Bite", group: "Lebensmittel", basePrice: 1.60, vatRate: 7 }
+  { nr: 59, name: "Cup StU", group: "Sonstige", basePrice: 1.50, vatRate: 19 }, // KORRIGIERT: Nr. 59 (Cup StU)
+  { nr: 46, name: "Vesperdose", group: "Sonstige", basePrice: 10.00, vatRate: 19 },
+  { nr: 47, name: "Glaspfand-Einnahme", group: "Sonstige", basePrice: 1.00, vatRate: 19 },
+  { nr: 48, name: "Flaschen Pfand-Einnahme (Limo & Seezüngle)", group: "Sonstige", basePrice: 0.20, vatRate: 19 },
+  { nr: 49, name: "Glaspfand-Ausgabe", group: "Sonstige", basePrice: -1.00, vatRate: 19 },
+  { nr: 50, name: "Flaschen Pfand-Ausgabe (Limo & Seezüngle)", group: "Sonstige", basePrice: -0.20, vatRate: 19 },
+  { nr: 51, name: "Porridge (3 Toppings)", group: "Lebensmittel", basePrice: 1.50, vatRate: 7 },
+  { nr: 52, name: "Nikolaus", group: "Lebensmittel", basePrice: 2.80, vatRate: 7 },
+  { nr: 53, name: "Limo", group: "Lebensmittel", basePrice: 1.50, vatRate: 19 },
+  { nr: 60, name: "College-Block (80 Blatt)", group: "Schreibwaren", basePrice: 1.50, vatRate: 19 }, // KORRIGIERT: Nr. 60 (College-Block)
+  { nr: 61, name: "Crossita", group: "Lebensmittel", basePrice: 1.50, vatRate: 7 }, // KORRIGIERT: Nr. 61 (Crossita)
+  { nr: 62, name: "Mandel Tonka", group: "Lebensmittel", basePrice: 1.00, vatRate: 7 }, // KORRIGIERT: Nr. 62 (Mandel Tonka)
+  { nr: 63, name: "Fair Bite", group: "Lebensmittel", basePrice: 1.60, vatRate: 7 } // KORRIGIERT: Nr. 63 (Fair Bite)
 ];
 
 export async function GET() {
   await dbConnect();
   const Product = mongoose.models.Product;
   try {
-    // Defensiv-Suche: Findet alle Produkte, die nicht ausdrücklich gelöscht wurden ($ne: false)
     let products = await Product.find({ active: { $ne: false } }).sort({ nr: 1 });
     
     if (products.length === 0) {
