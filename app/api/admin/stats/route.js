@@ -2,10 +2,13 @@ import dbConnect from '@/lib/dbConnect';
 import Sale from '@/models/Sale';
 import { NextResponse } from 'next/server';
 
-export async function GET(req) {
+export async function GET() {
   await dbConnect();
   try {
-    const sales = await Sale.find({ storno: false });
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Wir filtern nur die heutigen Verkäufe, die aktiv und nicht storniert sind
+    const sales = await Sale.find({ saleDate: today, status: 'active', storno: false });
     
     let totalRevenue = 0;
     let totalNetto = 0;
@@ -31,6 +34,7 @@ export async function GET(req) {
     })).sort((a, b) => b.totalSold - a.totalSold).slice(0, 5);
 
     return NextResponse.json({
+      success: true,
       summary: {
         totalRevenue: Math.round(totalRevenue * 100) / 100,
         totalNetto: Math.round(totalNetto * 100) / 100,
