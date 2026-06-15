@@ -1,6 +1,19 @@
 import dbConnect from '@/lib/dbConnect';
-import Sale from '@/models/Sale';
+import '@/models/Sale'; // Registriert das Modell global in Mongoose
+import mongoose from 'mongoose';
 import { NextResponse } from 'next/server';
+
+const Sale = mongoose.model('Sale');
+
+export async function GET() {
+  await dbConnect();
+  try {
+    const sales = await Sale.find().sort({ createdAt: -1 });
+    return NextResponse.json({ success: true, sales });
+  } catch (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
 
 export async function POST(req) {
   await dbConnect();
@@ -8,7 +21,7 @@ export async function POST(req) {
     const body = await req.json();
     const { action, saleId, items, statusType } = body;
 
-    // 1. NEUER VERKAUF ABSCHLIESSEN (CHECKOUT)
+    // 1. KAUF ABSCHLIESSEN (Dauerhaft in MongoDB buchen)
     if (action === 'CHECKOUT') {
       const today = new Date().toISOString().split('T')[0];
       
@@ -16,10 +29,13 @@ export async function POST(req) {
       let totalNetto = 0;
       let totalVat = 0;
 
-      // Mathematisch präzise Netto- und MwSt.-Berechnung pro Posten
       items.forEach(item => {
-        const lineBrutto = item.priceAtSale * item.quantity;
-        const factor = 1 + (item.vatRateAtSale / 100);
+        const price = parseFloat(item.priceAtSale) || 0;
+        const quantity = parseInt(item.quantity) || 0;
+        const vatRate = parseFloat(item.vatRateAtSale) || 0;
+
+        const lineBrutto = price * quantity;
+        const factor = 1 + (vatRate / 100);
         const lineNetto = lineBrutto / factor;
         const lineVat = lineBrutto - lineNetto;
 
@@ -29,7 +45,13 @@ export async function POST(req) {
       });
 
       const newSale = new Sale({
-        items,
+        items: items.map(i => ({
+          productId: i.productId,
+          name: i.name,
+          quantity: parseInt(i.quantity),
+          priceAtSale: parseFloat(i.priceAtSale),
+          vatRateAtSale: parseFloat(i.vatRateAtSale)
+        })),
         totalBrutto: Math.round(totalBrutto * 100) / 100,
         totalNetto: Math.round(totalNetto * 100) / 100,
         totalVat: Math.round(totalVat * 100) / 100,
@@ -42,7 +64,7 @@ export async function POST(req) {
       return NextResponse.json({ success: true, sale: newSale });
     }
 
-    // 2. STORNO-ABWICKLUNG
+    // 2. STORNO-FUNKTION
     if (action === 'STORNO') {
       const updatedSale = await Sale.findByIdAndUpdate(
         saleId, 
@@ -52,17 +74,14 @@ export async function POST(req) {
       return NextResponse.json({ success: true, sale: updatedSale });
     }
 
-    // 3. STATUS-UPDATE (PAUSEN- & KASSENSCHLUSS)
+    // 3. PAUSENSCHLUSS / KASSENSCHLUSS
     if (action === 'UPDATE_STATUS') {
       const today = new Date().toISOString().split('T')[0];
-      
-      // Setzt alle noch offenen Verkäufe von heute auf den archivierten Status
       await Sale.updateMany(
         { saleDate: today, status: 'active', storno: false },
         { $set: { status: statusType } }
       );
-
-      return NextResponse.json({ success: true, message: `Status auf ${statusType} gesetzt.` });
+      return NextResponse.json({ success: true });
     }
 
     return NextResponse.json({ error: 'Ungültige Aktion' }, { status: 400 });

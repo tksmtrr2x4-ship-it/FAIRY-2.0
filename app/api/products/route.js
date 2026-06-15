@@ -1,11 +1,10 @@
 import dbConnect from '@/lib/dbConnect';
-import ProductModel from '@/models/Product';
+import '@/models/Product'; // Registriert das Modell global in Mongoose
+import mongoose from 'mongoose';
 import { NextResponse } from 'next/server';
 
-// Sicheres Entpacken des Mongoose-Modells für Next.js / Turbopack
-const Product = ProductModel.default || ProductModel;
+const Product = mongoose.model('Product');
 
-// Die originalen Daten aus dem PDF-Register
 const initialProducts = [
   { nr: 1, name: "Himbeeren", group: "Unverpackt; Lebensmittel", basePrice: 2.50, vatRate: 7 },
   { nr: 2, name: "Studentenfutter", group: "Unverpackt; Lebensmittel", basePrice: 1.00, vatRate: 7 },

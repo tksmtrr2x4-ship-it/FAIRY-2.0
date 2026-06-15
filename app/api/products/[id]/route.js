@@ -1,8 +1,10 @@
 import dbConnect from '@/lib/dbConnect';
-import Product from '@/models/Product';
+import '@/models/Product'; // Registriert das Modell global in Mongoose
+import mongoose from 'mongoose';
 import { NextResponse } from 'next/server';
 
-// 1. Produkt aktualisieren (Preis, Name, Gruppe, MwSt)
+const Product = mongoose.model('Product');
+
 export async function PUT(req, { params }) {
   await dbConnect();
   try {
@@ -22,7 +24,6 @@ export async function PUT(req, { params }) {
   }
 }
 
-// 2. Produkt löschen (Sicheres Soft-Delete, um alte Verkäufe nicht zu beschädigen)
 export async function DELETE(req, { params }) {
   await dbConnect();
   try {
