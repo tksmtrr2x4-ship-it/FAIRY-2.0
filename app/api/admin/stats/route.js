@@ -1,21 +1,21 @@
 import dbConnect from '@/lib/dbConnect';
+import rawSale from '@/models/Sale';
 import { NextResponse } from 'next/server';
 
-const Sale = require('@/models/Sale');
+const Sale = rawSale.default || rawSale;
 
 export async function GET(req) {
   await dbConnect();
   try {
     const url = new URL(req.url);
-    const quarter = url.searchParams.get('quarter'); // 'testphase', 'q1', 'q2'
-    const dateParam = url.searchParams.get('date');  // Lokales Datum im Format YYYY-MM-DD
+    const quarter = url.searchParams.get('quarter');
+    const dateParam = url.searchParams.get('date');
     
     let query = { storno: false };
 
     if (quarter) {
       query.status = quarter;
     } else {
-      // Priorisiert das deutsche Datum des Kassen-Browsers (verhindert Vercel-USA-Zeitzonen-Fehler)
       const today = dateParam || new Date().toISOString().split('T')[0];
       query.saleDate = today;
       query.status = 'active';

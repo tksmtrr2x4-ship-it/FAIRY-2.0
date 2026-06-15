@@ -1,9 +1,9 @@
 import dbConnect from '@/lib/dbConnect';
+import rawSale from '@/models/Sale';
 import { NextResponse } from 'next/server';
 
-// Sicheres Laden beider Modelle zur Vermeidung von Schema-Konflikten
-require('@/models/Product');
-const Sale = require('@/models/Sale');
+// Sicheres Entpacken des echten Konstruktors, um Next.js-Kompilierungsbugs zu vermeiden
+const Sale = rawSale.default || rawSale;
 
 export async function GET() {
   await dbConnect();
@@ -74,16 +74,13 @@ export async function POST(req) {
       return NextResponse.json({ success: true, sale: updatedSale });
     }
 
-    // 3. STATUS-UPDATE (PAUSENARCHIVIERUNG)
+    // 3. PAUSENSCHLUSS / KASSENSCHLUSS
     if (action === 'UPDATE_STATUS') {
       const today = localDate || new Date().toISOString().split('T')[0];
-      
-      // Archiviert alle noch offenen Verkäufe des heutigen Tages
       await Sale.updateMany(
         { saleDate: today, status: 'active', storno: false },
         { $set: { status: statusType } }
       );
-
       return NextResponse.json({ success: true });
     }
 
