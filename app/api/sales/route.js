@@ -1,9 +1,9 @@
 import dbConnect from '@/lib/dbConnect';
-import rawSale from '@/models/Sale';
 import { NextResponse } from 'next/server';
 
-// Sicheres Entpacken des echten Konstruktors, um Next.js-Kompilierungsbugs zu vermeiden
-const Sale = rawSale.default || rawSale;
+// WICHTIG: Mongoose muss beide Schemata kennen, um Beziehungsfehler ("ref: Product") zu vermeiden
+require('@/models/Product');
+const Sale = require('@/models/Sale');
 
 export async function GET() {
   await dbConnect();
