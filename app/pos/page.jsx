@@ -10,8 +10,6 @@ export default function PosInterface() {
   const [lastSaleId, setLastSaleId] = useState(null);
   const [liveTime, setLiveTime] = useState('');
   const [liveDate, setLiveDate] = useState('');
-
-  // Toast Notification State
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
   // System-Konfigurationen
@@ -199,25 +197,25 @@ export default function PosInterface() {
 
   return (
     <div className="min-h-screen bg-[#F5F5F7] text-[#1D1D1F] font-sans antialiased flex flex-col selection:bg-[#D31329] selection:text-white">
+      {/* Hardwarebeschleunigter unendlicher Marquee-Style */}
+      <style>{`
+        @keyframes marquee {
+          0% { transform: translateX(0%); }
+          100% { transform: translateX(-50%); }
+        }
+        .animate-marquee-continuous {
+          display: inline-flex;
+          white-space: nowrap;
+          animation: marquee 25s linear infinite;
+        }
+      `}</style>
+
       {/* Header */}
       <header className="sticky top-0 z-40 backdrop-blur-md bg-white/75 border-b border-gray-200/50 px-8 py-4 flex justify-between items-center">
         <div className="flex items-center gap-4">
-          {/* Back Arrow Button */}
-          <Link 
-            href="/" 
-            className="h-8 w-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-sm font-bold text-gray-600 transition-all active:scale-90"
-            title="Zurück zur Auswahl"
-          >
-            ←
-          </Link>
+          <Link href="/" className="h-8 w-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-sm font-bold text-gray-600 transition-all active:scale-90">←</Link>
           <div className="flex items-center gap-3">
-            {/* Logo Integration */}
-            <img 
-              src="/logo.png" 
-              alt="St. Ursula Villingen" 
-              className="h-10 w-auto object-contain rounded"
-              onError={(e) => { e.target.style.display = 'none'; }} // Blendet Bild aus, falls noch nicht im Ordner
-            />
+            <img src="/logo.png" alt="St. Ursula Villingen" className="h-10 w-auto object-contain rounded" onError={(e) => { e.target.style.display = 'none'; }} />
             <div>
               <h1 className="text-xl font-bold tracking-tight text-[#D31329]">Weltladen St. Ursula</h1>
               <p className="text-xs text-gray-400 font-bold tracking-wide">FAIRTRADE SCHÜLERFIRMA • VILLINGEN</p>
@@ -229,31 +227,31 @@ export default function PosInterface() {
             Live-Kasse
           </div>
         </div>
-
-        {/* Live Uhrzeit, Datum & Tutorial Button */}
         <div className="flex items-center gap-6">
           <div className="text-right">
             <span className="text-sm font-bold text-gray-800 font-mono tracking-widest">{liveTime || '00:00:00'}</span>
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
-              {liveDate || 'Lade Datum...'}
-            </p>
+            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{liveDate || 'Lade Datum...'}</p>
           </div>
           <div className="h-6 w-px bg-gray-200" />
-          {/* Tutorial Button (?) */}
-          <button 
-            onClick={() => { setTutorialStep(1); setShowTutorial(true); }}
-            className="h-8 w-8 rounded-full border border-gray-300 flex items-center justify-center text-sm font-bold text-gray-500 hover:bg-[#D31329]/10 hover:text-[#D31329] hover:border-[#D31329] transition-all cursor-pointer"
-            title="Hilfe-Tutorial öffnen"
-          >
-            ?
-          </button>
+          <button onClick={() => { setTutorialStep(1); setShowTutorial(true); }} className="h-8 w-8 rounded-full border border-gray-300 flex items-center justify-center text-sm font-bold text-gray-500 hover:bg-[#D31329]/10 hover:text-[#D31329] hover:border-[#D31329] transition-all cursor-pointer">?</button>
         </div>
       </header>
 
+      {/* UNENDLICHES LAUFBAND-BANNER (Hardware-Accelerated Marquee) */}
       {config.bannerActive && (
-        <div className="bg-[#D31329]/10 border-b border-[#D31329]/20 text-[#D31329] py-3 px-8 text-center text-sm font-bold tracking-wide flex items-center justify-center gap-2 animate-pulse">
-          <span className="h-2 w-2 rounded-full bg-[#D31329]" />
-          📢 {config.bannerMessage}
+        <div className="relative flex overflow-x-hidden bg-[#D31329]/10 border-b border-[#D31329]/20 text-[#D31329] py-3 text-sm font-bold tracking-wide select-none">
+          <div className="animate-marquee-continuous flex gap-16 pr-16">
+            <span>📢 {config.bannerMessage}</span>
+            <span>📢 {config.bannerMessage}</span>
+            <span>📢 {config.bannerMessage}</span>
+            <span>📢 {config.bannerMessage}</span>
+          </div>
+          <div className="animate-marquee-continuous flex gap-16 pr-16" aria-hidden="true">
+            <span>📢 {config.bannerMessage}</span>
+            <span>📢 {config.bannerMessage}</span>
+            <span>📢 {config.bannerMessage}</span>
+            <span>📢 {config.bannerMessage}</span>
+          </div>
         </div>
       )}
 
@@ -358,17 +356,16 @@ export default function PosInterface() {
               <div className="flex justify-between text-xs text-gray-400 pl-4"><span>dav. MwSt 7%:</span><span>{reportData.vat7.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span></div>
               <div className="flex justify-between text-xs text-gray-400 pl-4"><span>dav. MwSt 19%:</span><span>{reportData.vat19.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span></div>
               <div className="flex justify-between border-t pt-2"><span>Umsatz (Netto):</span><span className="font-bold">{reportData.netto.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span></div>
-              <div className="flex justify-between border-t-2 border-dashed border-gray-300 pt-4 text-base font-bold text-[#D31329] font-sans"><span>Soll-Bargeld:</span><span>{reportData.brutto.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span></div>
+              <div className="flex justify-between border-t-2 border-dashed border-gray-300 pt-4 text-base font-bold text-[#0D2B45] font-sans"><span>Soll-Bargeld:</span><span>{reportData.brutto.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span></div>
             </div>
             <div className="mt-8 border-t pt-6 flex flex-col gap-3 font-sans">
-              <button onClick={confirmReport} className="w-full py-4 bg-[#D31329] hover:bg-[#b01020] text-white font-bold rounded-2xl shadow-md">Bericht archivieren</button>
+              <button onClick={confirmReport} className="w-full py-4 bg-[#0D2B45] hover:bg-[#163f61] text-white font-bold rounded-2xl shadow-md">Bericht archivieren</button>
               <button onClick={() => window.print()} className="w-full py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold rounded-xl text-xs uppercase tracking-wider">Bericht drucken</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* GORGEOUS APPLE TOAST NOTIFICATION */}
       {toast.show && (
         <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl backdrop-blur-md border ${
           toast.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-800' : 'bg-red-500/10 border-red-500/20 text-[#D31329]'
@@ -378,10 +375,10 @@ export default function PosInterface() {
         </div>
       )}
 
-      {/* SEAMLESS INTERACTIVE TUTORIAL MODAL */}
+      {/* TUTORIAL MODAL */}
       {showTutorial && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-md p-4">
-          <div className="bg-white/95 max-w-lg w-full rounded-3xl p-8 shadow-2xl border border-white/20 flex flex-col justify-between relative transform scale-100 transition-all duration-300">
+          <div className="bg-white/95 max-w-lg w-full rounded-3xl p-8 shadow-2xl border border-white/20 flex flex-col justify-between relative">
             <button onClick={() => setShowTutorial(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-lg font-bold">✕</button>
             
             <div className="text-center border-b border-gray-100 pb-4 mb-6">
@@ -389,77 +386,48 @@ export default function PosInterface() {
               <h2 className="text-xl font-extrabold text-[#0B2F5C] mt-3">Kassen-Tutorial • Schritt {tutorialStep} von 4</h2>
             </div>
 
-            {/* Steps Rendering */}
             <div className="py-4 text-[#1D1D1F] leading-relaxed">
               {tutorialStep === 1 && (
                 <div className="flex flex-col items-center text-center">
                   <span className="text-4xl mb-4">🛒</span>
                   <h3 className="font-extrabold text-base text-[#D31329]">Produkte erfassen</h3>
-                  <p className="text-sm text-gray-500 mt-2 font-medium">
-                    Tippe einfach auf die runden Produktkarten im linken Katalog, um Artikel in deinen Einkaufszettel (Warenkorb) zu legen. Nutze das Suchfeld ganz oben, um Produkte blitzschnell nach Namen zu filtern.
-                  </p>
+                  <p className="text-sm text-gray-500 mt-2 font-medium">Tippe einfach auf die runden Produktkarten im linken Katalog, um Artikel in deinen Einkaufszettel (Warenkorb) zu legen. Nutze das Suchfeld ganz oben, um Produkte blitzschnell nach Namen zu filtern.</p>
                 </div>
               )}
               {tutorialStep === 2 && (
                 <div className="flex flex-col items-center text-center">
                   <span className="text-4xl mb-4">💳</span>
                   <h3 className="font-extrabold text-base text-[#D31329]">Kauf abschließen</h3>
-                  <p className="text-sm text-gray-500 mt-2 font-medium">
-                    Überprüfe die Summe im Einkaufszettel rechts und klicke auf <span className="font-bold text-[#D31329]">„Kauf abschließen“</span>. Der Umsatz wird sofort in der MongoDB-Cloud gespeichert. Falls du dich vertippt hast, klicke sofort auf <span className="font-bold text-red-500">„Stornieren“</span>.
-                  </p>
+                  <p className="text-sm text-gray-500 mt-2 font-medium">Überprüfe die Summe im Einkaufszettel rechts und klicke auf <span className="font-bold text-[#D31329]">„Kauf abschließen“</span>. Der Umsatz wird sofort in der MongoDB-Cloud gespeichert. Falls du dich vertippt hast, klicke sofort auf <span className="font-bold text-red-500">„Stornieren“</span>.</p>
                 </div>
               )}
               {tutorialStep === 3 && (
                 <div className="flex flex-col items-center text-center">
                   <span className="text-4xl mb-4">📊</span>
                   <h3 className="font-extrabold text-base text-[#D31329]">Pausenschnitt (Cut) machen</h3>
-                  <p className="text-sm text-gray-500 mt-2 font-medium">
-                    Nach der 1. und 2. Pause klickt das Team unten auf den jeweiligen Pausen-Button. Ein Z-Bon öffnet sich und berechnet die Summen. Klicke dort auf <span className="font-bold text-[#D31329]">„Bericht archivieren“</span>. Danach startet die Kasse wieder sauber bei <span className="font-bold text-[#D31329]">0,00 €</span>.
-                  </p>
+                  <p className="text-sm text-gray-500 mt-2 font-medium">Nach der 1. und 2. Pause klickt das Team unten auf den jeweiligen Pausen-Button. Ein Z-Bon öffnet sich und berechnet die Summen. Klicke dort auf <span className="font-bold text-[#D31329]">„Bericht archivieren“</span>. Danach startet die Kasse wieder sauber bei <span className="font-bold text-[#D31329]">0,00 €</span>.</p>
                 </div>
               )}
               {tutorialStep === 4 && (
                 <div className="flex flex-col items-center text-center">
                   <span className="text-4xl mb-4">🔒</span>
                   <h3 className="font-extrabold text-base text-[#D31329]">Schichtwechsel & Schutz</h3>
-                  <p className="text-sm text-gray-500 mt-2 font-medium">
-                    Über den Pfeil-Button <span className="font-bold">「←」</span> oben links gelangst du jederzeit zurück zum Startmenü. Der Admin-Bereich ist durch das Kennwort geschützt, damit Schüler keine unbefugten Preisänderungen vornehmen können.
-                  </p>
+                  <p className="text-sm text-gray-500 mt-2 font-medium">Über den Pfeil-Button <span className="font-bold">「←」</span> oben links gelangst du jederzeit zurück zum Startmenü. Der Admin-Bereich ist durch das Kennwort geschützt, damit Schüler keine unbefugten Preisänderungen vornehmen können.</p>
                 </div>
               )}
             </div>
 
-            {/* Steuerungstasten für das Tutorial */}
             <div className="mt-8 border-t pt-6 flex justify-between items-center">
-              <button 
-                disabled={tutorialStep === 1}
-                onClick={() => setTutorialStep(prev => prev - 1)}
-                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 disabled:opacity-40 font-bold rounded-xl text-xs uppercase tracking-wider transition-all"
-              >
-                Zurück
-              </button>
-              
-              {/* Dots Progress Indicator */}
+              <button disabled={tutorialStep === 1} onClick={() => setTutorialStep(prev => prev - 1)} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 disabled:opacity-40 font-bold rounded-xl text-xs uppercase tracking-wider transition-all">Zurück</button>
               <div className="flex gap-2">
                 {[1, 2, 3, 4].map(idx => (
                   <span key={idx} className={`h-2 w-2 rounded-full transition-all duration-300 ${tutorialStep === idx ? 'bg-[#D31329] w-4' : 'bg-gray-300'}`} />
                 ))}
               </div>
-
               {tutorialStep < 4 ? (
-                <button 
-                  onClick={() => setTutorialStep(prev => prev + 1)}
-                  className="px-4 py-2 bg-[#D31329] hover:bg-[#b01020] text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-all"
-                >
-                  Weiter
-                </button>
+                <button onClick={() => setTutorialStep(prev => prev + 1)} className="px-4 py-2 bg-[#D31329] hover:bg-[#b01020] text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-all">Weiter</button>
               ) : (
-                <button 
-                  onClick={() => setShowTutorial(false)}
-                  className="px-4 py-2 bg-[#D31329] hover:bg-[#b01020] text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-all"
-                >
-                  Fertig
-                </button>
+                <button onClick={() => setShowTutorial(false)} className="px-4 py-2 bg-[#D31329] hover:bg-[#b01020] text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-all">Fertig</button>
               )}
             </div>
           </div>
