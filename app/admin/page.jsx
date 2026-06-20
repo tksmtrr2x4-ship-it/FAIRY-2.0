@@ -214,7 +214,7 @@ export default function AdminDashboard() {
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-[#F5F5F7] flex flex-col items-center justify-center font-sans">
-        <form onSubmit={handleLogin} className="bg-white/80 backdrop-blur-md p-10 rounded-3xl shadow-xl max-w-sm w-full border border-white/20 text-center animate-fade-in">
+        <form onSubmit={handleLogin} className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md p-10 rounded-3xl shadow-xl max-w-sm w-full border border-white/20 dark:border-zinc-800/50 text-center animate-fade-in">
           <span className="text-4xl mb-4 block">🔒</span>
           <h2 className="text-xl font-bold text-[#D31329] mb-2 tracking-tight">Admin-Bereich geschützt</h2>
           <p className="text-xs text-gray-400 mb-6 font-semibold uppercase tracking-wider">St. Ursula Weltladen Villingen</p>
@@ -223,7 +223,7 @@ export default function AdminDashboard() {
             placeholder="Kennwort eingeben..."
             value={passcode}
             onChange={(e) => setPasscode(e.target.value)}
-            className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-4 focus:ring-[#D31329]/10 focus:border-[#D31329] text-center font-bold tracking-widest mb-4"
+            className="w-full px-4 py-3 rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-center font-bold tracking-widest mb-4 text-gray-800 dark:text-zinc-100"
           />
           <button type="submit" className="w-full py-3.5 bg-[#D31329] hover:bg-[#b01020] text-white font-bold rounded-2xl transition-all active:scale-95 shadow-md">Entsperren</button>
         </form>
@@ -233,7 +233,9 @@ export default function AdminDashboard() {
 
   return (
     <div className={isDarkMode ? 'dark' : ''}>
-      <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 p-8 font-sans antialiased flex flex-col justify-between selection:bg-[#D31329] selection:text-white transition-colors duration-500">
+      <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 text-[#1D1D1F] dark:text-zinc-100 p-8 font-sans antialiased flex flex-col justify-between selection:bg-[#D31329] selection:text-white transition-colors duration-500">
+        
+        {/* Haupt-Inhalt (Einkapselung) */}
         <div>
           <header className="flex justify-between items-center mb-8 border-b pb-6 border-gray-200 dark:border-zinc-800">
             <div className="flex items-center gap-4">
@@ -252,8 +254,8 @@ export default function AdminDashboard() {
                 <p className="text-[10px] text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider">{liveDate || 'Lade Datum...'}</p>
               </div>
               <button onClick={toggleTheme} className="h-8 w-8 rounded-full border border-gray-300 dark:border-zinc-800 flex items-center justify-center text-sm shadow-sm">{isDarkMode ? '☀️' : '🌙'}</button>
-              <button onClick={handleLogout} className="px-4 py-2 bg-red-50 hover:bg-red-100 text-[#D31329] font-bold rounded-xl text-xs uppercase tracking-wider transition-all">Abmelden</button>
-              <select value={selectedPeriodId} onChange={(e) => setSelectedPeriodId(e.target.value)} className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 px-4 py-2.5 rounded-2xl shadow-sm font-semibold text-gray-700 dark:text-zinc-300 outline-none">
+              <button onClick={handleLogout} className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-xl text-xs uppercase tracking-wider transition-all">Abmelden</button>
+              <select value={selectedPeriodId} onChange={(e) => setSelectedPeriodId(e.target.value)} className="bg-white border border-gray-200 dark:border-zinc-800 px-4 py-2.5 rounded-2xl shadow-sm font-semibold text-gray-700 dark:text-zinc-300 outline-none">
                 {periods.map(p => (
                   <option key={p._id} value={p._id}>
                     {p.name} ({new Date(p.startDate).toLocaleDateString('de-DE')} - {new Date(p.endDate).toLocaleDateString('de-DE')})
@@ -265,9 +267,9 @@ export default function AdminDashboard() {
 
           {/* KPI Dashboard */}
           <div className="grid grid-cols-3 gap-6 mb-8">
-            <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-150 dark:border-zinc-800 shadow-sm"><p className="text-xs text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider">Umsatz (Brutto)</p><p className="text-3xl font-extrabold text-[#D31329] mt-2">{stats.totalRevenue.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</p></div>
-            <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-150 dark:border-zinc-800 shadow-sm"><p className="text-xs text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider">Umsatz (Netto)</p><p className="text-3xl font-extrabold text-[#8E8E93] mt-2">{stats.totalNetto?.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }) || '0,00 €'}</p></div>
-            <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-150 dark:border-zinc-800 shadow-sm"><p className="text-xs text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider">Belege gesamt</p><p className="text-3xl font-extrabold mt-2 text-gray-700 dark:text-zinc-200">{stats.salesCount} Belege</p></div>
+            <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-150 dark:border-zinc-800 shadow-sm"><p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Umsatz (Brutto)</p><p className="text-3xl font-extrabold text-[#D31329] mt-2">{stats.totalRevenue.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</p></div>
+            <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-150 dark:border-zinc-800 shadow-sm"><p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Umsatz (Netto)</p><p className="text-3xl font-extrabold text-[#8E8E93] mt-2">{stats.totalNetto?.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }) || '0,00 €'}</p></div>
+            <div className="bg-white p-6 dark:bg-zinc-900 rounded-3xl border border-gray-150 dark:border-zinc-800 shadow-sm"><p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Belege gesamt</p><p className="text-3xl font-extrabold mt-2 text-gray-700 dark:text-zinc-200">{stats.salesCount} Belege</p></div>
           </div>
 
           <div className="grid grid-cols-12 gap-8 mb-8">
@@ -290,7 +292,7 @@ export default function AdminDashboard() {
               <h2 className="text-lg font-bold text-[#D31329]">Kassensystem konfigurieren</h2>
               <form onSubmit={handleSaveConfig} className="flex flex-col gap-4 mt-4 h-full justify-between">
                 <div className="flex flex-col gap-3">
-                  <div className="flex items-center justify-between bg-[#F5F5F7] dark:bg-zinc-950 p-3 rounded-xl border dark:border-zinc-800">
+                  <div className="flex items-center justify-between bg-[#F5F5F7] dark:bg-zinc-950 p-3 rounded-xl border dark:border-zinc-850">
                     <span className="text-xs font-bold uppercase text-gray-500 dark:text-zinc-400 tracking-wider">Aktionsbanner anzeigen?</span>
                     <input type="checkbox" checked={bannerActive} onChange={(e) => setBannerActive(e.target.checked)} className="h-5 w-5 text-[#D31329] focus:ring-[#D31329]" />
                   </div>
@@ -364,7 +366,7 @@ export default function AdminDashboard() {
                 <select name="pgroup" className="px-4 py-3 rounded-xl border dark:border-zinc-800 bg-white dark:bg-zinc-950 text-gray-800 dark:text-zinc-100 font-medium focus:ring-2 focus:ring-[#D31329]/20 focus:border-[#D31329] outline-none"><option value="Lebensmittel">Lebensmittel</option><option value="Unverpackt; Lebensmittel">Unverpackt; Lebensmittel</option><option value="Schreibwaren">Schreibwaren</option><option value="Sonstige">Sonstige</option></select>
                 <input type="number" step="0.05" name="pprice" placeholder="Preis (€)" className="px-4 py-3 rounded-xl border dark:border-zinc-800 bg-white dark:bg-zinc-950 text-gray-800 dark:text-zinc-100 font-medium focus:ring-2 focus:ring-[#D31329]/20 focus:border-[#D31329] outline-none" required />
                 <select name="pvat" className="px-4 py-3 rounded-xl border dark:border-zinc-800 bg-white dark:bg-zinc-950 text-gray-800 dark:text-zinc-100 font-medium focus:ring-2 focus:ring-[#D31329]/20 focus:border-[#D31329] outline-none"><option value={7}>7% (Essen)</option><option value={19}>19% (Zubehör)</option></select>
-                <button type="submit" className="col-span-4 py-3.5 bg-[#D31329] hover:bg-[#b01020] text-white font-bold rounded-xl shadow-md transition-all active:scale-95">Produkt hinzufügen</button>
+                <button type="submit" className="col-span-4 py-3.5 bg-[#D31329] hover:bg-[#b01020] text-white font-bold rounded-xl shadow-md transition-all">Produkt hinzufügen</button>
               </form>
             </section>
 
@@ -438,12 +440,12 @@ export default function AdminDashboard() {
             </div>
           </section>
         </div>
-      </div>
 
-      {/* Copyright Footer */}
-      <footer className="mt-8 py-5 text-center text-[10px] text-gray-400 dark:text-zinc-600 font-bold uppercase tracking-wider bg-white dark:bg-zinc-950 border-t border-gray-150 dark:border-zinc-800">
-        © 2026 Schülerfirma Weltladen St. Ursula Villingen. Alle Rechte vorbehalten für Jill Manuel Hils.
-      </footer>
+        {/* Copyright Footer (Verschoben nach ganz unten auf Layout-Ebene) */}
+        <footer className="mt-8 py-5 text-center text-[10px] text-gray-400 dark:text-zinc-600 font-bold uppercase tracking-wider bg-white dark:bg-zinc-950 border-t border-gray-150 dark:border-zinc-800">
+          © 2026 Schülerfirma Weltladen St. Ursula Villingen. Alle Rechte vorbehalten für Jill Manuel Hils.
+        </footer>
+      </div>
     </div>
   );
 }
