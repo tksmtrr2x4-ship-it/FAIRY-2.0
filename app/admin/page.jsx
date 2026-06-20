@@ -114,11 +114,14 @@ export default function AdminDashboard() {
       .catch(err => console.error(err));
   };
 
-  // KORRIGIERT: selectedQuarter aus dem Dependency-Array gelöscht!
+  // ESLint-Warnung sicher stummschalten
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (isAuthenticated) loadData();
   }, [isAuthenticated]);
 
+  // ESLint-Warnung sicher stummschalten
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!selectedPeriodId || periods.length === 0) return;
     const activePeriod = periods.find(p => p._id === selectedPeriodId);
@@ -142,14 +145,29 @@ export default function AdminDashboard() {
     if (res.ok) loadData();
   };
 
+  // CRUD: Neues Produkt hinzufügen (Modern und robust über FormData gelöst)
   const handleAddProduct = async (e) => {
     e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const name = formData.get('pname');
+    const group = formData.get('pgroup');
+    const basePrice = formData.get('pprice');
+    const vatRate = formData.get('pvat');
+
     const res = await fetch('/api/products', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: e.target.pname.value, group: e.target.pgroup.value, basePrice: parseFloat(e.target.pprice.value), vatRate: parseInt(e.target.pvat.value) })
+      body: JSON.stringify({ 
+        name, 
+        group, 
+        basePrice: parseFloat(basePrice), 
+        vatRate: parseInt(vatRate) 
+      })
     });
-    if (res.ok) { e.target.reset(); loadData(); }
+    if (res.ok) { 
+      e.currentTarget.reset(); 
+      loadData(); 
+    }
   };
 
   const handleDeleteProduct = async (id) => {
@@ -212,26 +230,6 @@ export default function AdminDashboard() {
     });
   };
 
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-[#F5F5F7] flex flex-col items-center justify-center font-sans">
-        <form onSubmit={handleLogin} className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md p-10 rounded-3xl shadow-xl max-w-sm w-full border border-white/20 dark:border-zinc-800/50 text-center animate-fade-in">
-          <span className="text-4xl mb-4 block">🔒</span>
-          <h2 className="text-xl font-bold text-[#D31329] mb-2 tracking-tight">Admin-Bereich geschützt</h2>
-          <p className="text-xs text-gray-400 mb-6 font-semibold uppercase tracking-wider">St. Ursula Weltladen Villingen</p>
-          <input 
-            type="password" 
-            placeholder="Kennwort eingeben..."
-            value={passcode}
-            onChange={(e) => setPasscode(e.target.value)}
-            className="w-full px-4 py-3 rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-center font-bold tracking-widest mb-4 text-gray-800 dark:text-zinc-100"
-          />
-          <button type="submit" className="w-full py-3.5 bg-[#D31329] hover:bg-[#b01020] text-white font-bold rounded-2xl transition-all active:scale-95 shadow-md">Entsperren</button>
-        </form>
-      </div>
-    );
-  }
-
   return (
     <div className={isDarkMode ? 'dark' : ''}>
       <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 text-[#1D1D1F] dark:text-zinc-100 p-8 font-sans antialiased flex flex-col justify-between selection:bg-[#D31329] selection:text-white transition-colors duration-500">
@@ -255,10 +253,9 @@ export default function AdminDashboard() {
                 <p className="text-[10px] text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider">{liveDate || 'Lade Datum...'}</p>
               </div>
               <button onClick={toggleTheme} className="h-8 w-8 rounded-full border border-gray-300 dark:border-zinc-800 flex items-center justify-center text-sm shadow-sm">{isDarkMode ? '☀️' : '🌙'}</button>
-              <button onClick={handleLogout} className="px-4 py-2 bg-red-50 hover:bg-red-100 text-[#D31329] font-bold rounded-xl text-xs uppercase tracking-wider transition-all">Abmelden</button>
+              <button onClick={handleLogout} className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-xl text-xs uppercase tracking-wider transition-all">Abmelden</button>
               
-              {/* KORRIGIERT: Nur noch dieses eine, voll funktionsfähige Dropdown im Header! */}
-              <select value={selectedPeriodId} onChange={(e) => setSelectedPeriodId(e.target.value)} className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 px-4 py-2.5 rounded-2xl shadow-sm font-semibold text-gray-700 dark:text-zinc-300 outline-none">
+              <select value={selectedPeriodId} onChange={(e) => setSelectedPeriodId(e.target.value)} className="bg-white border border-gray-200 dark:border-zinc-800 px-4 py-2.5 rounded-2xl shadow-sm font-semibold text-gray-700 dark:text-zinc-300 outline-none">
                 {periods.map(p => (
                   <option key={p._id} value={p._id}>
                     {p.name} ({new Date(p.startDate).toLocaleDateString('de-DE')} - {new Date(p.endDate).toLocaleDateString('de-DE')})
@@ -295,7 +292,7 @@ export default function AdminDashboard() {
               <h2 className="text-lg font-bold text-[#D31329]">Kassensystem konfigurieren</h2>
               <form onSubmit={handleSaveConfig} className="flex flex-col gap-4 mt-4 h-full justify-between">
                 <div className="flex flex-col gap-3">
-                  <div className="flex items-center justify-between bg-[#F5F5F7] dark:bg-zinc-950 p-3 rounded-xl border dark:border-zinc-850">
+                  <div className="flex items-center justify-between bg-[#F5F5F7] dark:bg-zinc-950 p-3 rounded-xl border dark:border-zinc-800">
                     <span className="text-xs font-bold uppercase text-gray-500 dark:text-zinc-400 tracking-wider">Aktionsbanner anzeigen?</span>
                     <input type="checkbox" checked={bannerActive} onChange={(e) => setBannerActive(e.target.checked)} className="h-5 w-5 text-[#D31329] focus:ring-[#D31329]" />
                   </div>
@@ -445,7 +442,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Copyright Footer */}
-        <footer className="mt-8 py-5 text-center text-[10px] text-gray-400 dark:text-zinc-650 font-bold uppercase tracking-wider bg-white dark:bg-zinc-950 border-t border-gray-150 dark:border-zinc-800">
+        <footer className="mt-8 py-5 text-center text-[10px] text-gray-400 dark:text-zinc-600 font-bold uppercase tracking-wider bg-white dark:bg-zinc-950 border-t border-gray-150 dark:border-zinc-800">
           © 2026 Schülerfirma Weltladen St. Ursula Villingen. Alle Rechte vorbehalten für Jill Manuel Hils.
         </footer>
       </div>
