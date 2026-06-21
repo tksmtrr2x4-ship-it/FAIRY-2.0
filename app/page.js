@@ -1,3 +1,4 @@
+// app/page.js
 'use client';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -12,7 +13,7 @@ export default function Home() {
       setIsDarkMode(true);
       document.documentElement.classList.add('dark');
     }
-    
+
     fetch('/api/settings')
       .then(res => res.json())
       .then(data => { if (data.success && data.settings) setConfig(data.settings); })
@@ -31,36 +32,28 @@ export default function Home() {
     }
   };
 
+  if (config.maintenanceActive) {
+    return (
+      <div className="min-h-screen bg-[#F5F5F7] dark:bg-[#09090B] flex flex-col items-center justify-center font-sans antialiased text-[#1D1D1F] dark:text-[#F5F5F7] p-6 transition-colors duration-500 relative overflow-hidden">
+        <div className="max-w-md w-full text-center bg-white/70 dark:bg-zinc-900/70 backdrop-blur-2xl border border-white/20 dark:border-zinc-800/50 p-10 rounded-3xl shadow-xl flex flex-col items-center">
+          <div className="h-16 w-16 rounded-2xl bg-[#D31329]/10 flex items-center justify-center mb-6 animate-pulse">
+            <span className="text-3xl text-[#D31329]">🛠️</span>
+          </div>
+          <h2 className="text-2xl font-extrabold text-[#D31329] tracking-tight">Systemaktualisierung</h2>
+          <p className="text-sm text-gray-500 dark:text-zinc-400 font-medium mt-4 leading-relaxed">
+            Der Weltladen St. Ursula führt gerade ein System-Update durch. Wir sind in wenigen Minuten wieder einsatzbereit.
+          </p>
+          <div className="h-px w-full bg-gray-200/50 my-6" />
+          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">St. Ursula Schulen Villingen • Schülerfirma</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={isDarkMode ? 'dark' : ''}>
       <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 flex flex-col items-center justify-center font-sans antialiased p-6 transition-colors duration-500 relative overflow-hidden">
-        
-        {/* Glow-Animationen */}
-        <style>{`
-          @keyframes rotate-blob {
-            0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
-            33% { transform: translate(30px, -50px) scale(1.1) rotate(120deg); }
-            66% { transform: translate(-20px, 20px) scale(0.9) rotate(240deg); }
-          }
-          .animate-blob-slow { animation: rotate-blob 25s infinite alternate ease-in-out; }
-          .animate-blob-reverse { animation: rotate-blob 30s infinite alternate-reverse ease-in-out; }
-        `}</style>
-
-        {/* Dynamic SaaS Blobs */}
-        <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-[#D31329]/8 dark:bg-[#D31329]/5 rounded-full blur-[120px] animate-blob-slow pointer-events-none" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-zinc-400/20 dark:bg-zinc-800/10 rounded-full blur-[120px] animate-blob-reverse pointer-events-none" />
-
-        {/* Theme Toggle Button */}
-        <button 
-          onClick={toggleTheme}
-          className="absolute top-6 right-6 p-3 bg-white/70 dark:bg-zinc-900/70 border border-gray-200/50 dark:border-zinc-800/50 rounded-full shadow-sm hover:shadow-lg transition-all duration-300 z-50 active:scale-95 text-lg"
-          title="Farbmodus wechseln"
-        >
-          {isDarkMode ? '☀️' : '🌙'}
-        </button>
-
-        {/* Bento Hub Box */}
-        <div className="bg-white/60 dark:bg-zinc-900/60 backdrop-blur-2xl p-10 rounded-3xl shadow-[0_12px_40px_rgba(0,0,0,0.03)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.4)] max-w-md w-full text-center border border-white/20 dark:border-zinc-800/50 flex flex-col items-center z-10 transform hover:scale-[1.01] transition-all duration-500 hover:shadow-2xl">
+        <div className="bg-white/70 dark:bg-zinc-900/70 backdrop-blur-2xl p-10 rounded-3xl shadow-xl max-w-md w-full text-center border border-white/20 dark:border-zinc-800/50 flex flex-col items-center">
           <img 
             src="/logo.png" 
             alt="St. Ursula" 
@@ -84,11 +77,6 @@ export default function Home() {
               Admin-Dashboard
             </Link>
           </div>
-        </div>
-        
-        {/* Copyright Footer */}
-        <div className="absolute bottom-6 text-center text-[10px] text-gray-400 dark:text-zinc-600 font-bold uppercase tracking-wider z-10">
-          © 2026 Schülerfirma Weltladen St. Ursula Villingen. Alle Rechte vorbehalten für Jill Manuel Hils.
         </div>
       </div>
     </div>

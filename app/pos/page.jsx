@@ -218,7 +218,7 @@ export default function PosInterface() {
     <div className={isDarkMode ? 'dark' : ''}>
       <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 text-[#1D1D1F] dark:text-zinc-100 font-sans antialiased flex flex-col selection:bg-[#D31329] selection:text-white transition-colors duration-500">
         
-        {/* Einzeiliges, lückenloses CSS Marquee-Verfahren */}
+        {/* Einzeiliges, lückenloses CSS Marquee */}
         <style>{`
           @keyframes marquee {
             0% { transform: translate3d(0, 0, 0); }
@@ -232,22 +232,16 @@ export default function PosInterface() {
         `}</style>
 
         {/* Header */}
-        <header className="sticky top-0 z-40 backdrop-blur-md bg-white/75 dark:bg-zinc-900/75 border-b border-gray-200/50 dark:border-zinc-800/50 px-8 py-4 flex justify-between items-center">
+        <header className="sticky top-0 z-40 backdrop-blur-md bg-white/75 border-b border-gray-200/50 dark:border-zinc-800/50 px-8 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
             <Link 
               href="/" 
               className="h-8 w-8 rounded-full bg-white dark:bg-zinc-850 border border-gray-200 dark:border-zinc-800 hover:bg-gray-100 dark:hover:bg-zinc-800 flex items-center justify-center text-sm font-bold text-gray-600 dark:text-zinc-300 transition-all active:scale-90"
-              title="Zurück zur Auswahl"
             >
               ←
             </Link>
             <div className="flex items-center gap-3">
-              <img 
-                src="/logo.png" 
-                alt="St. Ursula Villingen" 
-                className="h-10 w-auto object-contain rounded dark:brightness-110"
-                onError={(e) => { e.target.style.display = 'none'; }}
-              />
+              <img src="/logo.png" alt="St. Ursula" className="h-10 w-auto object-contain rounded dark:brightness-110" onError={(e) => { e.target.style.display = 'none'; }} />
               <div>
                 <h1 className="text-xl font-bold tracking-tight text-[#D31329]">Weltladen St. Ursula</h1>
                 <p className="text-xs text-gray-400 dark:text-zinc-500 font-bold tracking-wide">FAIRTRADE SCHÜLERFIRMA • VILLINGEN</p>
@@ -266,23 +260,12 @@ export default function PosInterface() {
               <p className="text-[10px] text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider">{liveDate || 'Lade Datum...'}</p>
             </div>
             <div className="h-6 w-px bg-gray-200 dark:bg-zinc-800" />
-            <button 
-              onClick={toggleTheme}
-              className="h-8 w-8 rounded-full border border-gray-300 dark:border-zinc-800 flex items-center justify-center text-sm shadow-sm"
-              title="Dunkelmodus umschalten"
-            >
-              {isDarkMode ? '☀️' : '🌙'}
-            </button>
-            <button 
-              onClick={() => { setTutorialStep(1); setShowTutorial(true); }}
-              className="h-8 w-8 rounded-full border border-gray-300 dark:border-zinc-800 flex items-center justify-center text-sm font-bold text-gray-500 dark:text-zinc-400 hover:bg-[#D31329]/10 hover:text-[#D31329] transition-all cursor-pointer"
-            >
-              ?
-            </button>
+            <button onClick={toggleTheme} className="h-8 w-8 rounded-full border border-gray-300 dark:border-zinc-800 flex items-center justify-center text-sm shadow-sm">{isDarkMode ? '☀️' : '🌙'}</button>
+            <button onClick={() => { setTutorialStep(1); setShowTutorial(true); }} className="h-8 w-8 rounded-full border border-gray-300 dark:border-zinc-800 flex items-center justify-center text-sm font-bold text-gray-500 dark:text-zinc-400 hover:bg-[#D31329]/10 hover:text-[#D31329] transition-all cursor-pointer">?</button>
           </div>
         </header>
 
-        {/* REIN EINZEILIGES LAUFBAND-BANNER (Keine vertikale Stapelung mehr!) */}
+        {/* Laufband-Banner */}
         {config.bannerActive && (
           <div className="relative w-full overflow-hidden bg-[#D31329]/10 border-b border-[#D31329]/20 text-[#D31329] dark:text-[#FF4D5A] py-3 text-sm font-bold tracking-wide select-none">
             <div className="flex w-[200%] animate-marquee-single">
@@ -323,7 +306,7 @@ export default function PosInterface() {
                     <button
                       key={product._id}
                       onClick={() => addToCart(product)}
-                      className="p-5 bg-white dark:bg-zinc-900 border border-gray-100/80 dark:border-zinc-800 hover:border-[#D31329] rounded-3xl shadow-sm hover:shadow-xl text-left flex flex-col justify-between h-36 transition-all duration-300 hover:-translate-y-0.5 active:scale-95 group"
+                      className="p-5 bg-white border border-gray-100/80 hover:border-[#D31329] rounded-3xl shadow-sm hover:shadow-xl text-left flex flex-col justify-between h-36 transition-all duration-300 hover:-translate-y-0.5 active:scale-95 group"
                     >
                       <div>
                         <span className="text-[10px] font-bold text-[#D31329] tracking-widest uppercase bg-[#D31329]/10 px-2 py-0.5 rounded-full">{product.group}</span>
@@ -358,7 +341,7 @@ export default function PosInterface() {
 
             <div className="border-t pt-4">
               <div className="flex justify-between text-lg font-bold mb-6">
-                <span className="text-gray-500 dark:text-zinc-400 font-medium">Summe</span>
+                <span className="text-gray-500 font-medium">Summe</span>
                 <span className="text-2xl font-bold text-[#D31329]">{totalCartPrice.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>
               </div>
               <button 
@@ -369,7 +352,7 @@ export default function PosInterface() {
                 Kauf abschließen
               </button>
               {lastSaleId && (
-                <button onClick={handleStorno} className="w-full mt-2 py-2 bg-red-50 dark:bg-red-950/20 hover:bg-red-100 text-[#D31329] font-bold rounded-xl text-xs uppercase tracking-wider">Stornieren</button>
+                <button onClick={handleStorno} className="w-full mt-2 py-2 bg-red-50 hover:bg-red-100 text-[#D31329] font-bold rounded-xl text-xs uppercase tracking-wider">Stornieren</button>
               )}
             </div>
           </aside>
@@ -389,24 +372,23 @@ export default function PosInterface() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md p-4">
             <div className="bg-white/95 dark:bg-zinc-950/95 max-w-md w-full rounded-3xl p-8 shadow-2xl border border-white/20 dark:border-zinc-800/50 relative">
               <button onClick={() => setShowReportModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-lg font-bold">✕</button>
-              <div className="text-center border-b border-dashed border-gray-300 dark:border-zinc-800 pb-4 mb-6">
+              <div className="text-center border-b border-dashed border-gray-300 pb-4 mb-6">
                 <span className="text-xs font-bold text-[#D31329] tracking-widest uppercase bg-[#D31329]/10 px-3 py-1 rounded-full">Kassenbericht</span>
                 <h2 className="text-xl font-extrabold text-[#D31329] mt-3">{reportTitle}</h2>
-                <p className="text-[10px] text-gray-400 dark:text-zinc-500 font-bold uppercase mt-1">St. Ursula Villingen</p>
+                <p className="text-[10px] text-gray-400 dark:text-[#8E8E93] font-bold uppercase mt-1">St. Ursula Villingen</p>
               </div>
               <div className="flex flex-col gap-4 font-mono text-sm text-gray-700 dark:text-zinc-300">
-                <div className="flex justify-between border-b dark:border-zinc-800 pb-2 text-xs text-gray-400 dark:text-zinc-500 font-sans font-bold uppercase"><span>Posten</span><span>Summe</span></div>
+                <div className="flex justify-between border-b pb-2 text-xs text-gray-400 dark:text-zinc-500 font-sans font-bold uppercase"><span>Posten</span><span>Summe</span></div>
                 <div className="flex justify-between"><span>Bediente Belege:</span><span className="font-bold font-sans">{reportData.count} Bons</span></div>
                 <div className="flex justify-between"><span>Umsatz (Brutto):</span><span className="font-bold">{reportData.brutto.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span></div>
-                <div className="flex justify-between text-xs text-gray-400 dark:text-zinc-500 pl-4"><span>dav. MwSt 7%:</span><span>{reportData.vat7.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span></div>
-                <div className="flex justify-between text-xs text-gray-400 dark:text-zinc-500 pl-4"><span>dav. MwSt 19%:</span><span>{reportData.vat19.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span></div>
-                <div className="flex justify-between border-t dark:border-zinc-800 pt-2"><span>Umsatz (Netto):</span><span className="font-bold">{reportData.netto.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span></div>
-                <div className="flex justify-between border-t-2 border-dashed border-gray-300 dark:border-zinc-800 pt-4 text-base font-bold text-[#D31329] font-sans"><span>Soll-Bargeld:</span><span>{reportData.brutto.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span></div>
+                <div className="flex justify-between text-xs text-gray-400 pl-4"><span>dav. MwSt 7%:</span><span>{reportData.vat7.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span></div>
+                <div className="flex justify-between text-xs text-gray-400 pl-4"><span>dav. MwSt 19%:</span><span>{reportData.vat19.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span></div>
+                <div className="flex justify-between border-t pt-2"><span>Umsatz (Netto):</span><span className="font-bold">{reportData.netto.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span></div>
+                <div className="flex justify-between border-t-2 border-dashed border-gray-300 pt-4 text-base font-bold text-[#D31329] font-sans"><span>Soll-Bargeld:</span><span>{reportData.brutto.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span></div>
               </div>
-              <div className="mt-8 border-t dark:border-zinc-800 pt-6 flex flex-col gap-3 font-sans">
-                <p className="text-[10px] text-gray-400 text-center font-bold uppercase tracking-wider mb-2">Generiert am {new Date().toLocaleDateString('de-DE')} • {new Date().toLocaleTimeString('de-DE')}</p>
+              <div className="mt-8 border-t pt-6 flex flex-col gap-3 font-sans">
                 <button onClick={confirmReport} className="w-full py-4 bg-[#D31329] hover:bg-[#163f61] text-white font-bold rounded-2xl shadow-md">Bericht archivieren</button>
-                <button onClick={() => window.print()} className="w-full py-2 bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-600 dark:text-zinc-300 font-bold rounded-xl text-xs uppercase tracking-wider">Bericht drucken</button>
+                <button onClick={() => window.print()} className="w-full py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold rounded-xl text-xs uppercase tracking-wider">Bericht drucken</button>
               </div>
             </div>
           </div>
@@ -424,10 +406,10 @@ export default function PosInterface() {
         {/* TUTORIAL MODAL */}
         {showTutorial && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-md p-4">
-            <div className="bg-white/95 dark:bg-zinc-950/95 max-w-lg w-full rounded-3xl p-8 shadow-2xl border border-white/20 flex flex-col justify-between relative">
+            <div className="bg-white/95 max-w-lg w-full rounded-3xl p-8 shadow-2xl border border-white/20 flex flex-col justify-between relative">
               <button onClick={() => setShowTutorial(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-lg font-bold">✕</button>
               
-              <div className="text-center border-b border-gray-100 dark:border-zinc-800 pb-4 mb-6">
+              <div className="text-center border-b border-gray-100 pb-4 mb-6">
                 <span className="text-[10px] font-bold text-[#D31329] tracking-widest uppercase bg-[#D31329]/10 px-3 py-1 rounded-full">Benutzerhandbuch</span>
                 <h2 className="text-xl font-extrabold text-[#0B2F5C] mt-3">Kassen-Tutorial • Schritt {tutorialStep} von 4</h2>
               </div>
@@ -437,7 +419,7 @@ export default function PosInterface() {
                   <div className="flex flex-col items-center text-center">
                     <span className="text-4xl mb-4">🛒</span>
                     <h3 className="font-extrabold text-base text-[#D31329]">Produkte erfassen</h3>
-                    <p className="text-sm text-gray-500 dark:text-zinc-400 mt-2 font-medium">Tippe einfach auf die runden Produktkarten im linken Katalog, um Artikel in deinen Einkaufszettel (Warenkorb) zu legen. Nutze das Suchfeld ganz oben, um Produkte blitzschnell nach Namen zu filtern.</p>
+                    <p className="text-sm text-gray-500 mt-2 font-medium">Tippe einfach auf die runden Produktkarten im linken Katalog, um Artikel in deinen Einkaufszettel (Warenkorb) zu legen. Nutze das Suchfeld ganz oben, um Produkte blitzschnell nach Namen zu filtern.</p>
                   </div>
                 )}
                 {tutorialStep === 2 && (
@@ -451,19 +433,19 @@ export default function PosInterface() {
                   <div className="flex flex-col items-center text-center">
                     <span className="text-4xl mb-4">📊</span>
                     <h3 className="font-extrabold text-base text-[#D31329]">Pausenschnitt (Cut) machen</h3>
-                    <p className="text-sm text-gray-500 dark:text-zinc-400 mt-2 font-medium">Nach der 1. und 2. Pause klickt das Team unten auf den jeweiligen Pausen-Button. Ein Z-Bon öffnet sich und berechnet die Summen. Klicke dort auf <span className="font-bold text-[#D31329]">„Bericht archivieren“</span>. Danach startet die Kasse wieder sauber bei <span className="font-bold text-[#D31329]">0,00 €</span>.</p>
+                    <p className="text-sm text-gray-500 mt-2 font-medium">Nach der 1. und 2. Pause klickt das Team unten auf den jeweiligen Pausen-Button. Ein Z-Bon öffnet sich und berechnet die Summen. Klicke dort auf <span className="font-bold text-[#D31329]">„Bericht archivieren“</span>. Danach startet die Kasse wieder sauber bei <span className="font-bold text-[#D31329]">0,00 €</span>.</p>
                   </div>
                 )}
                 {tutorialStep === 4 && (
                   <div className="flex flex-col items-center text-center">
                     <span className="text-4xl mb-4">🔒</span>
                     <h3 className="font-extrabold text-base text-[#D31329]">Schichtwechsel & Schutz</h3>
-                    <p className="text-sm text-gray-500 dark:text-zinc-400 mt-2 font-medium">Über den Pfeil-Button <span className="font-bold">「←」</span> oben links gelangst du jederzeit zurück zum Startmenü. Der Admin-Bereich ist durch das Kennwort geschützt, damit Schüler keine unbefugten Preisänderungen vornehmen können.</p>
+                    <p className="text-sm text-gray-500 mt-2 font-medium">Über den Pfeil-Button <span className="font-bold">「←」</span> oben links gelangst du jederzeit zurück zum Startmenü. Der Admin-Bereich ist durch das Kennwort geschützt, damit Schüler keine unbefugten Preisänderungen vornehmen können.</p>
                   </div>
                 )}
               </div>
 
-              <div className="mt-8 border-t dark:border-zinc-800 pt-6 flex justify-between items-center">
+              <div className="mt-8 border-t pt-6 flex justify-between items-center">
                 <button disabled={tutorialStep === 1} onClick={() => setTutorialStep(prev => prev - 1)} className="px-4 py-2 bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 font-bold rounded-xl text-xs uppercase tracking-wider transition-all">Zurück</button>
                 <div className="flex gap-2">
                   {[1, 2, 3, 4].map(idx => (
@@ -481,7 +463,7 @@ export default function PosInterface() {
         )}
 
         {/* Copyright Footer */}
-        <footer className="mt-auto py-5 text-center text-[10px] text-gray-400 dark:text-[#8E8E93] font-bold uppercase tracking-wider bg-white dark:bg-zinc-950 border-t border-gray-150 dark:border-zinc-800/80">
+        <footer className="mt-auto py-5 text-center text-[10px] text-gray-400 dark:text-zinc-650 font-bold uppercase tracking-wider bg-white dark:bg-zinc-950 border-t border-gray-150 dark:border-zinc-800/80">
           © 2026 Schülerfirma Weltladen St. Ursula Villingen. Alle Rechte vorbehalten für Jill Manuel Hils.
         </footer>
       </div>
