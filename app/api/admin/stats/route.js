@@ -1,12 +1,11 @@
 import dbConnect from '@/lib/dbConnect';
+import mongoose from 'mongoose';
 import { NextResponse } from 'next/server';
-
-require('@/models/Product');
-const Sale = require('@/models/Sale');
 
 export async function GET(req) {
   try {
     await dbConnect();
+    const Sale = mongoose.models.Sale;
     const url = new URL(req.url);
     const quarter = url.searchParams.get('quarter');
     const dateParam = url.searchParams.get('date');
