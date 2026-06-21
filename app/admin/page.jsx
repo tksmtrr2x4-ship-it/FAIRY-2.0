@@ -1,10 +1,10 @@
-// app/admin/page.jsx
+// app/admin/page.jsx - [Der exakte, stabile Stand vom 18.06. im St. Ursula Design]
 'use client';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 
-// DYNAMISCHER IMPORT DER GRAFIK-KOMPONENTEN (Verhindert stumme Browser-Abstürze!)
+// DYNAMISCHER IMPORT DER CHART-KOMPONENTEN (Verhindert stumme Browser-Hydrations-Abstürze)
 const ResponsiveContainer = dynamic(
   () => import('recharts').then((mod) => mod.ResponsiveContainer),
   { ssr: false }
@@ -101,6 +101,7 @@ export default function AdminDashboard() {
     setIsAuthenticated(false);
   };
 
+  // Live-Uhrzeit & Datum absolut hydrations-sicher initialisieren
   useEffect(() => {
     if (!isAuthenticated) return;
     const updateClock = () => {
@@ -177,6 +178,7 @@ export default function AdminDashboard() {
     if (res.ok) loadData();
   };
 
+  // CRUD: Neues Produkt hinzufügen (FormData macht es im VS-Code-Editor 100% fehlerfrei)
   const handleAddProduct = async (e) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -261,9 +263,29 @@ export default function AdminDashboard() {
     });
   };
 
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[#F5F5F7] flex flex-col items-center justify-center font-sans">
+        <form onSubmit={handleLogin} className="bg-white/80 backdrop-blur-md p-10 rounded-3xl shadow-xl max-w-sm w-full border border-white/20 text-center animate-fade-in">
+          <span className="text-4xl mb-4 block">🔒</span>
+          <h2 className="text-xl font-bold text-[#D31329] mb-2 tracking-tight">Admin-Bereich geschützt</h2>
+          <p className="text-xs text-gray-400 mb-6 font-semibold uppercase tracking-wider">St. Ursula Weltladen Villingen</p>
+          <input 
+            type="password" 
+            placeholder="Kennwort eingeben..."
+            value={passcode}
+            onChange={(e) => setPasscode(e.target.value)}
+            className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-4 focus:ring-[#D31329]/10 focus:border-[#D31329] text-center font-bold tracking-widest mb-4"
+          />
+          <button type="submit" className="w-full py-3.5 bg-[#D31329] hover:bg-[#b01020] text-white font-bold rounded-2xl transition-all active:scale-95 shadow-md">Entsperren</button>
+        </form>
+      </div>
+    );
+  }
+
   return (
     <div className={isDarkMode ? 'dark' : ''}>
-      <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 text-[#1D1D1F] dark:text-zinc-100 p-8 font-sans antialiased flex flex-col justify-between selection:bg-[#D31329] selection:text-white transition-colors duration-500">
+      <div className="min-h-screen bg-[#F5F5F7] dark:bg-zinc-950 text-[#1D1D1F] dark:text-zinc-100 p-8 font-sans antialiased flex flex-col justify-between selection:bg-[#D31329] selection:text-white transition-colors duration-500">
         
         {/* Haupt-Inhalt */}
         <div>
@@ -284,9 +306,8 @@ export default function AdminDashboard() {
                 <p className="text-[10px] text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider">{liveDate || 'Lade Datum...'}</p>
               </div>
               <button onClick={toggleTheme} className="h-8 w-8 rounded-full border border-gray-300 dark:border-zinc-800 flex items-center justify-center text-sm shadow-sm">{isDarkMode ? '☀️' : '🌙'}</button>
-              <button onClick={handleLogout} className="px-4 py-2 bg-red-50 hover:bg-red-100 text-[#D31329] font-bold rounded-xl text-xs uppercase tracking-wider transition-all">Abmelden</button>
+              <button onClick={handleLogout} className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-xl text-xs uppercase tracking-wider transition-all">Abmelden</button>
               
-              {/* KORRIGIERT: Keine new Date() Formatierungen mehr im JSX! */}
               <select value={selectedPeriodId} onChange={(e) => setSelectedPeriodId(e.target.value)} className="bg-white border border-gray-200 dark:border-zinc-800 px-4 py-2.5 rounded-2xl shadow-sm font-semibold text-gray-700 dark:text-zinc-300 outline-none">
                 {periods.map(p => (
                   <option key={p._id} value={p._id}>
@@ -305,7 +326,7 @@ export default function AdminDashboard() {
           </div>
 
           <div className="grid grid-cols-12 gap-8 mb-8">
-            <section className="col-span-6 bg-white p-6 dark:bg-zinc-900 rounded-3xl border border-gray-200/50 dark:border-zinc-800 shadow-sm h-[380px] flex flex-col justify-between">
+            <section className="col-span-6 bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-200/50 dark:border-zinc-800 shadow-sm h-[380px] flex flex-col justify-between">
               <h2 className="text-lg font-bold text-[#D31329] mb-6">Best-Selling Products</h2>
               <div className="h-72 w-full">
                 <ResponsiveContainer width="100%" height="100%">
@@ -324,7 +345,7 @@ export default function AdminDashboard() {
               <h2 className="text-lg font-bold text-[#D31329]">Kassensystem konfigurieren</h2>
               <form onSubmit={handleSaveConfig} className="flex flex-col gap-4 mt-4 h-full justify-between">
                 <div className="flex flex-col gap-3">
-                  <div className="flex items-center justify-between bg-[#F5F5F7] dark:bg-zinc-950 p-3 rounded-xl border dark:border-zinc-850">
+                  <div className="flex items-center justify-between bg-[#F5F5F7] dark:bg-zinc-950 p-3 rounded-xl border dark:border-zinc-800">
                     <span className="text-xs font-bold uppercase text-gray-500 dark:text-zinc-400 tracking-wider">Aktionsbanner anzeigen?</span>
                     <input type="checkbox" checked={bannerActive} onChange={(e) => setBannerActive(e.target.checked)} className="h-5 w-5 text-[#D31329] focus:ring-[#D31329]" />
                   </div>
@@ -404,7 +425,7 @@ export default function AdminDashboard() {
           </div>
 
           <div className="grid grid-cols-12 gap-8 mb-8">
-            <section className="col-span-12 bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-200/50 dark:border-zinc-800 shadow-sm">
+            <section className="col-span-12 bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-200/50 dark:border-zinc-800 shadow-sm animate-fade-in">
               <h2 className="text-lg font-bold text-[#D31329] mb-4">Editierbares Produktregister</h2>
               <div className="overflow-y-auto max-h-72">
                 <table className="w-full text-left border-collapse">
@@ -420,7 +441,7 @@ export default function AdminDashboard() {
           </div>
 
           <div className="grid grid-cols-12 gap-8 mb-8">
-            <section className="col-span-12 bg-white p-6 dark:bg-zinc-900 rounded-3xl border border-gray-200/50 dark:border-zinc-800 shadow-sm mb-8">
+            <section className="col-span-12 bg-white p-6 dark:bg-zinc-900 rounded-3xl border border-gray-200/50 dark:border-zinc-800 shadow-sm mb-8 animate-fade-in">
               <h2 className="text-lg font-bold text-[#D31329] mb-4">Transaktionsjournal</h2>
               <p className="text-xs text-gray-400 mb-6 font-medium">Zeigt genau die Belege an, die zum oben ausgewählten Abrechnungszeitraum gehören.</p>
               <div className="overflow-y-auto max-h-96">
@@ -477,7 +498,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Copyright Footer */}
-        <footer className="mt-8 py-5 text-center text-[10px] text-gray-400 dark:text-zinc-600 font-bold uppercase tracking-wider bg-white dark:bg-zinc-950 border-t border-gray-150 dark:border-zinc-800">
+        <footer className="mt-8 py-5 text-center text-[10px] text-gray-400 dark:text-zinc-650 font-bold uppercase tracking-wider bg-white dark:bg-zinc-950 border-t border-gray-150 dark:border-zinc-800">
           © 2026 Schülerfirma Weltladen St. Ursula Villingen. Alle Rechte vorbehalten für Jill Manuel Hils.
         </footer>
       </div>
