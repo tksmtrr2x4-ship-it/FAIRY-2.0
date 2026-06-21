@@ -1,42 +1,44 @@
+// app/api/periods/route.js - [Selbstheilende Perioden-API]
 import dbConnect from '@/lib/dbConnect';
 import mongoose from 'mongoose';
 import { NextResponse } from 'next/server';
 
-// REINER LESEZUGRIFF: Liest nur aus deiner Live-MongoDB (Kein Seeding mehr!)
 export async function GET() {
   try {
     await dbConnect();
-    const Product = mongoose.models.Product;
-    const products = await Product.find({ active: { $ne: false } }).sort({ nr: 1 });
-    return NextResponse.json({ products });
+    const Period = mongoose.models.Period;
+    
+    let periods = await Period.find().sort({ startDate: 1 });
+    
+    // SELBSTHEILUNG: Falls die Liste leer ist, legen wir die 3 Standard-Zeiträume an.
+    // Dies ist vollkommen sicher und berührt deine Verkaufsdaten auf dem Server nicht!
+    if (periods.length === 0) {
+      console.log("Perioden-Tabelle ist leer. Lege die Standard-Abrechnungszeiträume an...");
+      const defaultPeriods = [
+        { name: "Testphase", startDate: "2025-12-15", endDate: "2025-12-31" },
+        { name: "1. Quartal (Q1)", startDate: "2026-01-01", endDate: "2026-03-12" },
+        { name: "2. Quartal (Q2)", startDate: "2026-03-13", endDate: "2026-08-31" }
+      ];
+      await Period.insertMany(defaultPeriods);
+      periods = await Period.find().sort({ startDate: 1 });
+    }
+
+    return NextResponse.json({ success: true, periods });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// Erstellen eines neuen Artikels (Ohne alte Daten zu berühren)
 export async function POST(req) {
   try {
     await dbConnect();
-    const Product = mongoose.models.Product;
-    const body = await req.json();
-    const { name, group, basePrice, vatRate } = body;
+    const Period = mongoose.models.Period;
+    const { name, startDate, endDate } = await req.json();
 
-    // KORRIGIERT: 'await' statt 'asycn' Buchstabendreher!
-    const lastProduct = await Product.findOne().sort({ nr: -1 });
-    const nextNr = lastProduct ? lastProduct.nr + 1 : 1;
+    const newPeriod = new Period({ name, startDate, endDate });
+    await newPeriod.save();
 
-    const newProduct = new Product({
-      nr: nextNr,
-      name,
-      group,
-      basePrice: parseFloat(basePrice),
-      vatRate: parseInt(vatRate) || 19,
-      active: true
-    });
-
-    await newProduct.save();
-    return NextResponse.json({ success: true, product: newProduct });
+    return NextResponse.json({ success: true, period: newPeriod });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
