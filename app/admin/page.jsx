@@ -2,7 +2,33 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import dynamic from 'next/dynamic';
+
+// DYNAMISCHER IMPORT DER GRAFIK-KOMPONENTEN (Verhindert stumme Browser-Abstürze!)
+const ResponsiveContainer = dynamic(
+  () => import('recharts').then((mod) => mod.ResponsiveContainer),
+  { ssr: false }
+);
+const BarChart = dynamic(
+  () => import('recharts').then((mod) => mod.BarChart),
+  { ssr: false }
+);
+const Bar = dynamic(
+  () => import('recharts').then((mod) => mod.Bar),
+  { ssr: false }
+);
+const XAxis = dynamic(
+  () => import('recharts').then((mod) => mod.XAxis),
+  { ssr: false }
+);
+const YAxis = dynamic(
+  () => import('recharts').then((mod) => mod.YAxis),
+  { ssr: false }
+);
+const Tooltip = dynamic(
+  () => import('recharts').then((mod) => mod.Tooltip),
+  { ssr: false }
+);
 
 export default function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -28,11 +54,11 @@ export default function AdminDashboard() {
   const [bannerMessage, setBannerMessage] = useState('');
   const [maintenanceActive, setMaintenanceActive] = useState(false);
 
-  // Crash-sichere Datums- und Uhrzeitformatierer (Verhindern jegliche Hydrations- und RangeErrors)
+  // Crash-sichere Datums- und Uhrzeitformatierer
   const safeFormatDate = (dateStr) => {
     if (!dateStr) return '';
     const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr; // Falls ungültig, gib den Rohstring zurück
+    if (isNaN(d.getTime())) return dateStr;
     return d.toLocaleDateString('de-DE');
   };
 
@@ -236,7 +262,7 @@ export default function AdminDashboard() {
   const getFilteredSales = () => {
     const activePeriod = periods.find(p => p._id === selectedPeriodId);
     if (!activePeriod) return [];
-    return salesJournal.filter(sale => {
+    return (salesJournal || []).filter(sale => {
       const date = sale.saleDate;
       return date >= activePeriod.startDate && date <= activePeriod.endDate;
     });
@@ -265,10 +291,9 @@ export default function AdminDashboard() {
                 <p className="text-[10px] text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider">{liveDate || 'Lade Datum...'}</p>
               </div>
               <button onClick={toggleTheme} className="h-8 w-8 rounded-full border border-gray-300 dark:border-zinc-800 flex items-center justify-center text-sm shadow-sm">{isDarkMode ? '☀️' : '🌙'}</button>
-              <button onClick={handleLogout} className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-xl text-xs uppercase tracking-wider transition-all">Abmelden</button>
+              <button onClick={handleLogout} className="px-4 py-2 bg-red-50 hover:bg-red-100 text-[#D31329] font-bold rounded-xl text-xs uppercase tracking-wider transition-all">Abmelden</button>
               
-              {/* DYNAMISCHES DROP-DOWN (Mit sicherer safeFormatDate-Prüfung!) */}
-              <select value={selectedPeriodId} onChange={(e) => setSelectedPeriodId(e.target.value)} className="bg-white border border-gray-200 dark:border-zinc-800 px-4 py-2.5 rounded-2xl shadow-sm font-semibold text-gray-700 dark:text-zinc-300 outline-none">
+              <select value={selectedPeriodId} onChange={(e) => setSelectedPeriodId(e.target.value)} className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 px-4 py-2.5 rounded-2xl shadow-sm font-semibold text-gray-700 dark:text-zinc-300 outline-none">
                 {periods.map(p => (
                   <option key={p._id} value={p._id}>
                     {p.name} ({safeFormatDate(p.startDate)} - {safeFormatDate(p.endDate)})
@@ -280,13 +305,13 @@ export default function AdminDashboard() {
 
           {/* KPI Dashboard */}
           <div className="grid grid-cols-3 gap-6 mb-8">
-            <div className="bg-white p-6 dark:bg-zinc-900 rounded-3xl border border-gray-150 dark:border-zinc-800 shadow-sm"><p className="text-xs text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider">Umsatz (Brutto)</p><p className="text-3xl font-extrabold text-[#D31329] mt-2">{stats.totalRevenue.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</p></div>
-            <div className="bg-white p-6 dark:bg-zinc-900 rounded-3xl border border-gray-150 dark:border-zinc-800 shadow-sm"><p className="text-xs text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider">Umsatz (Netto)</p><p className="text-3xl font-extrabold text-[#8E8E93] mt-2">{stats.totalNetto?.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }) || '0,00 €'}</p></div>
+            <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-150 dark:border-zinc-800 shadow-sm"><p className="text-xs text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider">Umsatz (Brutto)</p><p className="text-3xl font-extrabold text-[#D31329] mt-2">{stats.totalRevenue.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</p></div>
+            <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-150 dark:border-zinc-800 shadow-sm"><p className="text-xs text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider">Umsatz (Netto)</p><p className="text-3xl font-extrabold text-[#8E8E93] mt-2">{stats.totalNetto?.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }) || '0,00 €'}</p></div>
             <div className="bg-white p-6 dark:bg-zinc-900 rounded-3xl border border-gray-150 dark:border-zinc-800 shadow-sm"><p className="text-xs text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider">Belege gesamt</p><p className="text-3xl font-extrabold mt-2 text-gray-700 dark:text-zinc-200">{stats.salesCount} Belege</p></div>
           </div>
 
           <div className="grid grid-cols-12 gap-8 mb-8">
-            <section className="col-span-6 bg-white p-6 rounded-3xl border border-gray-200/50 dark:border-zinc-800 shadow-sm h-[380px] flex flex-col justify-between">
+            <section className="col-span-6 bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-200/50 dark:border-zinc-800 shadow-sm h-[380px] flex flex-col justify-between">
               <h2 className="text-lg font-bold text-[#D31329] mb-6">Best-Selling Products</h2>
               <div className="h-72 w-full">
                 <ResponsiveContainer width="100%" height="100%">
@@ -379,13 +404,13 @@ export default function AdminDashboard() {
                 <select name="pgroup" className="px-4 py-3 rounded-xl border dark:border-zinc-800 bg-white dark:bg-zinc-950 text-gray-800 dark:text-zinc-100 font-medium focus:ring-2 focus:ring-[#D31329]/20 focus:border-[#D31329] outline-none"><option value="Lebensmittel">Lebensmittel</option><option value="Unverpackt; Lebensmittel">Unverpackt; Lebensmittel</option><option value="Schreibwaren">Schreibwaren</option><option value="Sonstige">Sonstige</option></select>
                 <input type="number" step="0.05" name="pprice" placeholder="Preis (€)" className="px-4 py-3 rounded-xl border dark:border-zinc-800 bg-white dark:bg-zinc-950 text-gray-800 dark:text-zinc-100 font-medium focus:ring-2 focus:ring-[#D31329]/20 focus:border-[#D31329] outline-none" required />
                 <select name="pvat" className="px-4 py-3 rounded-xl border dark:border-zinc-800 bg-white dark:bg-zinc-950 text-gray-800 dark:text-zinc-100 font-medium focus:ring-2 focus:ring-[#D31329]/20 focus:border-[#D31329] outline-none"><option value={7}>7% (Essen)</option><option value={19}>19% (Zubehör)</option></select>
-                <button type="submit" className="col-span-4 py-3.5 bg-[#D31329] hover:bg-[#b01020] text-white font-bold rounded-xl shadow-md transition-all active:scale-95">Produkt hinzufügen</button>
+                <button type="submit" className="col-span-4 py-3.5 bg-[#D31329] hover:bg-[#b01020] text-white font-bold rounded-xl shadow-md transition-all">Produkt hinzufügen</button>
               </form>
             </section>
           </div>
 
           <div className="grid grid-cols-12 gap-8 mb-8">
-            <section className="col-span-12 bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-200/50 dark:border-zinc-800 shadow-sm mb-8">
+            <section className="col-span-12 bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-200/50 dark:border-zinc-800 shadow-sm">
               <h2 className="text-lg font-bold text-[#D31329] mb-4">Editierbares Produktregister</h2>
               <div className="overflow-y-auto max-h-72">
                 <table className="w-full text-left border-collapse">
