@@ -114,13 +114,11 @@ export default function AdminDashboard() {
       .catch(err => console.error(err));
   };
 
-  // ESLint-Warnung sicher stummschalten
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (isAuthenticated) loadData();
   }, [isAuthenticated]);
 
-  // ESLint-Warnung sicher stummschalten
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!selectedPeriodId || periods.length === 0) return;
@@ -145,7 +143,6 @@ export default function AdminDashboard() {
     if (res.ok) loadData();
   };
 
-  // CRUD: Neues Produkt hinzufügen (Modern und robust über FormData gelöst)
   const handleAddProduct = async (e) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -267,13 +264,13 @@ export default function AdminDashboard() {
 
           {/* KPI Dashboard */}
           <div className="grid grid-cols-3 gap-6 mb-8">
-            <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-150 dark:border-zinc-800 shadow-sm"><p className="text-xs text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider">Umsatz (Brutto)</p><p className="text-3xl font-extrabold text-[#D31329] mt-2">{stats.totalRevenue.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</p></div>
-            <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-150 dark:border-zinc-800 shadow-sm"><p className="text-xs text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider">Umsatz (Netto)</p><p className="text-3xl font-extrabold text-[#8E8E93] mt-2">{stats.totalNetto?.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }) || '0,00 €'}</p></div>
+            <div className="bg-white p-6 dark:bg-zinc-900 rounded-3xl border border-gray-150 dark:border-zinc-800 shadow-sm"><p className="text-xs text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider">Umsatz (Brutto)</p><p className="text-3xl font-extrabold text-[#D31329] mt-2">{stats.totalRevenue.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</p></div>
+            <div className="bg-white p-6 dark:bg-zinc-900 rounded-3xl border border-gray-150 dark:border-zinc-800 shadow-sm"><p className="text-xs text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider">Umsatz (Netto)</p><p className="text-3xl font-extrabold text-[#8E8E93] mt-2">{stats.totalNetto?.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }) || '0,00 €'}</p></div>
             <div className="bg-white p-6 dark:bg-zinc-900 rounded-3xl border border-gray-150 dark:border-zinc-800 shadow-sm"><p className="text-xs text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider">Belege gesamt</p><p className="text-3xl font-extrabold mt-2 text-gray-700 dark:text-zinc-200">{stats.salesCount} Belege</p></div>
           </div>
 
           <div className="grid grid-cols-12 gap-8 mb-8">
-            <section className="col-span-6 bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-200/50 dark:border-zinc-800 shadow-sm h-[380px] flex flex-col justify-between">
+            <section className="col-span-6 bg-white p-6 rounded-3xl border border-gray-200/50 dark:border-zinc-800 shadow-sm h-[380px] flex flex-col justify-between">
               <h2 className="text-lg font-bold text-[#D31329] mb-6">Best-Selling Products</h2>
               <div className="h-72 w-full">
                 <ResponsiveContainer width="100%" height="100%">
@@ -292,7 +289,7 @@ export default function AdminDashboard() {
               <h2 className="text-lg font-bold text-[#D31329]">Kassensystem konfigurieren</h2>
               <form onSubmit={handleSaveConfig} className="flex flex-col gap-4 mt-4 h-full justify-between">
                 <div className="flex flex-col gap-3">
-                  <div className="flex items-center justify-between bg-[#F5F5F7] dark:bg-zinc-950 p-3 rounded-xl border dark:border-zinc-800">
+                  <div className="flex items-center justify-between bg-[#F5F5F7] dark:bg-zinc-950 p-3 rounded-xl border dark:border-zinc-850">
                     <span className="text-xs font-bold uppercase text-gray-500 dark:text-zinc-400 tracking-wider">Aktionsbanner anzeigen?</span>
                     <input type="checkbox" checked={bannerActive} onChange={(e) => setBannerActive(e.target.checked)} className="h-5 w-5 text-[#D31329] focus:ring-[#D31329]" />
                   </div>
@@ -357,8 +354,8 @@ export default function AdminDashboard() {
             </section>
           </div>
 
+          {/* Neues Produkt anlegen & Register & Journal */}
           <div className="grid grid-cols-12 gap-8 mb-8">
-            {/* Neues Produkt anlegen */}
             <section className="col-span-12 bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-200/50 dark:border-zinc-800 shadow-sm">
               <h2 className="text-lg font-bold text-[#D31329] mb-6">Neues Produkt hinzufügen</h2>
               <form onSubmit={handleAddProduct} className="grid grid-cols-4 gap-4">
@@ -369,9 +366,10 @@ export default function AdminDashboard() {
                 <button type="submit" className="col-span-4 py-3.5 bg-[#D31329] hover:bg-[#b01020] text-white font-bold rounded-xl shadow-md transition-all">Produkt hinzufügen</button>
               </form>
             </section>
+          </div>
 
-            {/* Editierbares Produktregister */}
-            <section className="col-span-12 bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-200/50 dark:border-zinc-800 shadow-sm mb-8">
+          <div className="grid grid-cols-12 gap-8 mb-8">
+            <section className="col-span-12 bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-200/50 dark:border-zinc-800 shadow-sm">
               <h2 className="text-lg font-bold text-[#D31329] mb-4">Editierbares Produktregister</h2>
               <div className="overflow-y-auto max-h-72">
                 <table className="w-full text-left border-collapse">
@@ -379,70 +377,72 @@ export default function AdminDashboard() {
                   <tbody>
                     {products.map((p) => (
                       <tr key={p._id} className="border-b dark:border-zinc-800 text-sm"><td className="py-3 font-mono text-xs text-gray-400">{p.nr}</td><td className="font-bold text-gray-800 dark:text-zinc-100">{p.name}</td><td><span className="text-[10px] font-bold text-gray-400 bg-gray-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full uppercase">{p.group}</span></td><td className="text-center text-gray-500 font-mono">{p.vatRate}%</td><td className="text-right py-1"><input type="number" step="0.05" defaultValue={p.basePrice} onBlur={(e) => handlePriceUpdate(p._id, e.target.value)} className="w-20 text-right border dark:border-zinc-800 bg-white dark:bg-zinc-950 text-gray-800 dark:text-zinc-100 rounded-xl px-2 py-1 font-bold focus:ring-2 focus:ring-[#D31329]/20 focus:border-[#D31329] outline-none" /></td><td className="text-right py-1"><button onClick={() => handleDeleteProduct(p._id)} className="px-3 py-1 bg-red-50 text-red-600 font-bold rounded-lg text-xs uppercase tracking-wider hover:bg-red-100">Löschen</button></td></tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </div>
 
-          {/* Transaktionsjournal */}
-          <section className="col-span-12 bg-white p-6 dark:bg-zinc-900 rounded-3xl border border-gray-200/50 dark:border-zinc-800 shadow-sm mb-8">
-            <h2 className="text-lg font-bold text-[#D31329] mb-4">Transaktionsjournal</h2>
-            <p className="text-xs text-gray-400 mb-6 font-medium">Zeigt genau die Belege an, die zum oben ausgewählten Abrechnungszeitraum gehören.</p>
-            <div className="overflow-y-auto max-h-96">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b dark:border-zinc-800 text-xs text-gray-400 uppercase tracking-wider font-bold">
-                    <th className="py-3">Abrechnungsdatum</th>
-                    <th>Bon-ID</th>
-                    <th>Artikel</th>
-                    <th>Status</th>
-                    <th className="text-right">Summe (Brutto)</th>
-                    <th className="text-right">Aktionen</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {getFilteredSales().map((sale) => (
-                    <tr key={sale._id} className={`border-b dark:border-zinc-800 text-sm ${sale.storno ? 'bg-red-50/30 line-through text-gray-400' : ''}`}>
-                      <td className="py-3 font-mono text-xs">{sale.saleDate} • {new Date(sale.createdAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr</td>
-                      <td className="font-mono text-xs text-gray-400">{sale._id.slice(-6).toUpperCase()}</td>
-                      <td>
-                        <div className="flex flex-col gap-1">
-                          {sale.items.map((item, i) => (
-                            <span key={i} className="text-xs font-semibold">
-                              {item.quantity}x {item.name} ({item.priceAtSale.toFixed(2)} €)
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-                      <td>
-                        {sale.storno ? (
-                          <span className="text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full uppercase">Storniert</span>
-                        ) : (
-                          <span className="text-[10px] font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full uppercase">{sale.status}</span>
-                        )}
-                      </td>
-                      <td className="text-right font-bold text-[#D31329]">{sale.totalBrutto.toFixed(2)} €</td>
-                      <td className="text-right py-2">
-                        {!sale.storno && (
-                          <button 
-                            onClick={() => handleJournalStorno(sale._id)}
-                            className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-600 font-bold rounded-lg text-xs uppercase tracking-wider"
-                          >
-                            Stornieren
-                          </button>
-                        )}
-                      </td>
+          <div className="grid grid-cols-12 gap-8 mb-8">
+            <section className="col-span-12 bg-white p-6 dark:bg-zinc-900 rounded-3xl border border-gray-200/50 dark:border-zinc-800 shadow-sm">
+              <h2 className="text-lg font-bold text-[#D31329] mb-4">Transaktionsjournal</h2>
+              <p className="text-xs text-gray-400 mb-6 font-medium">Zeigt genau die Belege an, die zum oben ausgewählten Abrechnungszeitraum gehören.</p>
+              <div className="overflow-y-auto max-h-96">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b dark:border-zinc-800 text-xs text-gray-400 uppercase tracking-wider font-bold">
+                      <th className="py-3">Abrechnungsdatum</th>
+                      <th>Bon-ID</th>
+                      <th>Artikel</th>
+                      <th>Status</th>
+                      <th className="text-right">Summe (Brutto)</th>
+                      <th className="text-right">Aktionen</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
+                  </thead>
+                  <tbody>
+                    {getFilteredSales().map((sale) => (
+                      <tr key={sale._id} className={`border-b dark:border-zinc-800 text-sm ${sale.storno ? 'bg-red-50/30 line-through text-gray-400' : ''}`}>
+                        <td className="py-3 font-mono text-xs">{sale.saleDate} • {new Date(sale.createdAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr</td>
+                        <td className="font-mono text-xs text-gray-400">{sale._id.slice(-6).toUpperCase()}</td>
+                        <td>
+                          <div className="flex flex-col gap-1">
+                            {sale.items.map((item, i) => (
+                              <span key={i} className="text-xs font-semibold">
+                                {item.quantity}x {item.name} ({item.priceAtSale.toFixed(2)} €)
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td>
+                          {sale.storno ? (
+                            <span className="text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full uppercase">Storniert</span>
+                          ) : (
+                            <span className="text-[10px] font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full uppercase">{sale.status}</span>
+                          )}
+                        </td>
+                        <td className="text-right font-bold text-[#D31329]">{sale.totalBrutto.toFixed(2)} €</td>
+                        <td className="text-right py-2">
+                          {!sale.storno && (
+                            <button 
+                              onClick={() => handleJournalStorno(sale._id)}
+                              className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-600 font-bold rounded-lg text-xs uppercase tracking-wider"
+                            >
+                              Stornieren
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </div>
         </div>
 
         {/* Copyright Footer */}
-        <footer className="mt-8 py-5 text-center text-[10px] text-gray-400 dark:text-zinc-600 font-bold uppercase tracking-wider bg-white dark:bg-zinc-950 border-t border-gray-150 dark:border-zinc-800">
+        <footer className="mt-8 py-5 text-center text-[10px] text-gray-400 dark:text-zinc-650 font-bold uppercase tracking-wider bg-white dark:bg-zinc-950 border-t border-gray-150 dark:border-zinc-800">
           © 2026 Schülerfirma Weltladen St. Ursula Villingen. Alle Rechte vorbehalten für Jill Manuel Hils.
         </footer>
       </div>
