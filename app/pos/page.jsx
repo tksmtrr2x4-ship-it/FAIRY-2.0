@@ -10,8 +10,7 @@ export default function PosInterface() {
   const [lastSaleId, setLastSaleId] = useState(null);
   const [liveTime, setLiveTime] = useState('');
   const [liveDate, setLiveDate] = useState('');
-
-  // Toast Notification State
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
   // System-Konfigurationen
@@ -23,12 +22,20 @@ export default function PosInterface() {
   const [pendingPhase, setPendingPhase] = useState('');
   const [reportData, setReportData] = useState({ brutto: 0, netto: 0, vat7: 0, vat19: 0, pfand: 0, count: 0 });
 
-  // Tutorial States
+  // Tutorial & Cinematic Loading States
   const [showTutorial, setShowTutorial] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(1);
+  const [isTransitioning, setIsTransitioning] = useState(true); // <--- Ladebildschirm aktiv
+  const [startSplitting, setStartSplitting] = useState(false);   // <--- Tor-Öffnung starten
 
-  // Live-Uhrzeit & Datum absolut hydrations-sicher initialisieren
+  // Live-Uhrzeit & Dark Mode initialisieren
   useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      setIsDarkMode(true);
+      document.documentElement.classList.add('dark');
+    }
+
     const updateClock = () => {
       const now = new Date();
       setLiveTime(now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
@@ -37,6 +44,24 @@ export default function PosInterface() {
     updateClock();
     const interval = setInterval(updateClock, 1000);
     return () => clearInterval(interval);
+  }, []);
+
+  // 5-Sekunden Cinematic-Timer
+  useEffect(() => {
+    // Nach 4.2 Sekunden gleiten die Tore auseinander
+    const splitTimeout = setTimeout(() => {
+      setStartSplitting(true);
+    }, 4200);
+
+    // Nach genau 5 Sekunden wird der Ladebildschirm komplett entfernt
+    const endTimeout = setTimeout(() => {
+      setIsTransitioning(false);
+    }, 5000);
+
+    return () => {
+      clearTimeout(splitTimeout);
+      clearTimeout(endTimeout);
+    };
   }, []);
 
   const triggerToast = (message, type = 'success') => {
@@ -181,14 +206,14 @@ export default function PosInterface() {
 
   if (config.maintenanceActive) {
     return (
-      <div className="min-h-screen bg-[#F5F5F7] flex flex-col items-center justify-center font-sans antialiased text-[#1D1D1F] p-6">
-        <div className="max-w-md w-full text-center bg-white border border-gray-200/50 p-10 rounded-3xl shadow-xl flex flex-col items-center">
+      <div className="min-h-screen bg-[#F5F5F7] dark:bg-[#09090B] flex flex-col items-center justify-center font-sans antialiased text-[#1D1D1F] dark:text-[#F5F5F7] p-6 transition-colors duration-500 relative overflow-hidden">
+        <div className="max-w-md w-full text-center bg-white/70 dark:bg-zinc-900/70 backdrop-blur-xl border border-white/20 dark:border-zinc-800/50 p-10 rounded-3xl shadow-xl flex flex-col items-center">
           <div className="h-16 w-16 rounded-2xl bg-[#D31329]/10 flex items-center justify-center mb-6 animate-pulse">
             <span className="text-3xl text-[#D31329]">🛠️</span>
           </div>
           <h2 className="text-2xl font-extrabold text-[#D31329] tracking-tight">Systemaktualisierung</h2>
-          <p className="text-sm text-gray-500 font-medium mt-4 leading-relaxed">
-            Der Weltladen St. Ursula führt gerade ein System-Update durch. Wir sind in wenigen Minuten wieder einsatzbereit.
+          <p className="text-sm text-gray-500 dark:text-zinc-400 font-medium mt-4 leading-relaxed">
+            Der Weltladen St. Ursula führt gerade ein System-Update oder eine Registerbereinigung durch. Wir sind in wenigen Minuten wieder einsatzbereit.
           </p>
           <div className="h-px w-full bg-gray-200/50 my-6" />
           <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">St. Ursula Schulen Villingen • Schülerfirma</p>
@@ -198,94 +223,103 @@ export default function PosInterface() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F5F7] text-[#1D1D1F] font-sans antialiased flex flex-col selection:bg-[#D31329] selection:text-white">
-      {/* Einzeiliges Marquee-Verfahren */}
-      <style>{`
-        @keyframes marquee {
-          0% { transform: translate3d(0, 0, 0); }
-          100% { transform: translate3d(-50%, 0, 0); }
-        }
-        .animate-marquee-single {
-          display: inline-flex;
-          white-space: nowrap;
-          animation: marquee 25s linear infinite;
-        }
-      `}</style>
+    <div className={isDarkMode ? 'dark' : ''}>
+      <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 text-[#1D1D1F] dark:text-zinc-100 font-sans antialiased flex flex-col selection:bg-[#D31329] selection:text-white transition-colors duration-500">
+        
+        {/* Marquee & Rotation Keyframes */}
+        <style>{`
+          @keyframes marquee {
+            0% { transform: translate3d(0, 0, 0); }
+            100% { transform: translate3d(-50%, 0, 0); }
+          }
+          .animate-marquee-single {
+            display: inline-flex;
+            white-space: nowrap;
+            animation: marquee 25s linear infinite;
+          }
+          @keyframes pulse-glow {
+            0%, 100% { transform: scale(1); filter: drop-shadow(0 0 15px rgba(211,19,41,0.2)); }
+            50% { transform: scale(1.03); filter: drop-shadow(0 0 35px rgba(211,19,41,0.6)); }
+          }
+          .animate-pulse-glow {
+            animation: pulse-glow 3s infinite ease-in-out;
+          }
+        `}</style>
 
-      {/* Header */}
-      <header className="sticky top-0 z-40 backdrop-blur-md bg-white/75 border-b border-gray-200/50 px-8 py-4 flex justify-between items-center">
-        <div className="flex items-center gap-4">
-          <Link href="/" className="h-8 w-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-sm font-bold text-gray-600 transition-all active:scale-90">←</Link>
-          <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="St. Ursula Villingen" className="h-10 w-auto object-contain rounded" onError={(e) => { e.target.style.display = 'none'; }} />
-            <div>
-              <h1 className="text-xl font-bold tracking-tight text-[#D31329]">Weltladen St. Ursula</h1>
-              <p className="text-xs text-gray-400 font-bold tracking-wide">FAIRTRADE SCHÜLERFIRMA • VILLINGEN</p>
+        {/* Header */}
+        <header className="sticky top-0 z-40 backdrop-blur-md bg-white/75 border-b border-gray-200/50 px-8 py-4 flex justify-between items-center">
+          <div className="flex items-center gap-4">
+            <Link href="/" className="h-8 w-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-sm font-bold text-gray-600 transition-all active:scale-90">←</Link>
+            <div className="flex items-center gap-3">
+              <img src="/logo.png" alt="St. Ursula Villingen" className="h-10 w-auto object-contain rounded" onError={(e) => { e.target.style.display = 'none'; }} />
+              <div>
+                <h1 className="text-xl font-bold tracking-tight text-[#D31329]">Weltladen St. Ursula</h1>
+                <p className="text-xs text-gray-400 font-bold tracking-wide">FAIRTRADE SCHÜLERFIRMA • VILLINGEN</p>
+              </div>
+            </div>
+            <div className="h-6 w-px bg-gray-200" />
+            <div className="text-sm font-semibold text-[#D31329] bg-[#D31329]/10 px-3 py-1 rounded-full flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-[#D31329] animate-pulse" />
+              Live-Kasse
             </div>
           </div>
-          <div className="h-6 w-px bg-gray-200" />
-          <div className="text-sm font-semibold text-[#D31329] bg-[#D31329]/10 px-3 py-1 rounded-full flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-[#D31329] animate-pulse" />
-            Live-Kasse
-          </div>
-        </div>
-        <div className="flex items-center gap-6">
-          <div className="text-right">
-            <span className="text-sm font-bold text-gray-800 font-mono tracking-widest">{liveTime || '00:00:00'}</span>
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
-              {liveDate || 'Lade Datum...'}
-            </p>
-          </div>
-          <div className="h-6 w-px bg-gray-200" />
-          <button onClick={() => { setTutorialStep(1); setShowTutorial(true); }} className="h-8 w-8 rounded-full border border-gray-300 flex items-center justify-center text-sm font-bold text-gray-500 hover:bg-[#D31329]/10 hover:text-[#D31329] transition-all cursor-pointer">?</button>
-        </div>
-      </header>
-
-      {/* Kontinuierliches Laufband */}
-      {config.bannerActive && (
-        <div className="relative w-full overflow-hidden bg-[#D31329]/10 border-b border-[#D31329]/20 text-[#D31329] py-3 text-sm font-bold tracking-wide select-none">
-          <div className="flex w-[200%] animate-marquee-single">
-            <div className="flex w-1/2 justify-around gap-16 pr-16">
-              <span>📢 {config.bannerMessage}</span>
-              <span>📢 {config.bannerMessage}</span>
+          <div className="flex items-center gap-6">
+            <div className="text-right">
+              <span className="text-sm font-bold text-gray-800 dark:text-zinc-100 font-mono tracking-widest">{liveTime || '00:00:00'}</span>
+              <p className="text-[10px] text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider">
+                {liveDate || 'Lade Datum...'}
+              </p>
             </div>
-            <div className="flex w-1/2 justify-around gap-16 pr-16">
-              <span>📢 {config.bannerMessage}</span>
-              <span>📢 {config.bannerMessage}</span>
+            <div className="h-6 w-px bg-gray-200" />
+            <button onClick={toggleTheme} className="h-8 w-8 rounded-full border border-gray-300 flex items-center justify-center text-sm shadow-sm">{isDarkMode ? '☀️' : '🌙'}</button>
+            <button onClick={() => { setTutorialStep(1); setShowTutorial(true); }} className="h-8 w-8 rounded-full border border-gray-300 flex items-center justify-center text-sm font-bold text-gray-500 hover:bg-[#D31329]/10 hover:text-[#D31329] transition-all cursor-pointer">?</button>
+          </div>
+        </header>
+
+        {config.bannerActive && (
+          <div className="relative w-full overflow-hidden bg-[#D31329]/10 border-b border-[#D31329]/20 text-[#D31329] py-3 text-sm font-bold tracking-wide select-none">
+            <div className="flex w-[200%] animate-marquee-single">
+              <div className="flex w-1/2 justify-around gap-16 pr-16">
+                <span>📢 {config.bannerMessage}</span>
+                <span>📢 {config.bannerMessage}</span>
+              </div>
+              <div className="flex w-1/2 justify-around gap-16 pr-16">
+                <span>📢 {config.bannerMessage}</span>
+                <span>📢 {config.bannerMessage}</span>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Grid */}
-      <div className="flex-1 grid grid-cols-12 gap-6 p-8">
-        <main className="col-span-8 flex flex-col gap-6">
-          <div className="relative shadow-sm rounded-2xl">
-            <input 
-              type="text" 
-              placeholder="Artikel suchen..." 
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full px-6 py-4 rounded-2xl border border-gray-200 bg-white text-base focus:outline-none focus:ring-4 focus:ring-[#D31329]/10 focus:border-[#D31329] transition-all duration-300 shadow-sm font-medium placeholder-gray-400"
-            />
-          </div>
-
-          {products.length === 0 ? (
-            <div className="flex-1 bg-white border border-gray-100 rounded-3xl p-12 flex flex-col items-center justify-center text-center">
-              <h3 className="text-lg font-bold text-[#D31329]">Lade Produkte...</h3>
+        {/* Grid */}
+        <div className="flex-1 grid grid-cols-12 gap-6 p-8">
+          <main className="col-span-8 flex flex-col gap-6">
+            <div className="relative shadow-sm rounded-2xl">
+              <input 
+                type="text" 
+                placeholder="Artikel suchen..." 
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full px-6 py-4 rounded-2xl border border-gray-200 bg-white text-base focus:outline-none focus:ring-4 focus:ring-[#D31329]/10 focus:border-[#D31329] transition-all duration-300 shadow-sm font-medium placeholder-gray-400"
+              />
             </div>
-          ) : (
-            <div className="flex-1 overflow-y-auto grid grid-cols-3 gap-4 pr-2 max-h-[calc(100vh-280px)]">
-              {products
-                .filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
-                .map(product => (
-                  <button
-                    key={product._id}
-                    onClick={() => addToCart(product)}
-                    className="p-5 bg-white border border-gray-100/80 hover:border-[#D31329] rounded-3xl shadow-sm hover:shadow-xl text-left flex flex-col justify-between h-36 transition-all duration-300 hover:-translate-y-0.5 active:scale-95 group"
+
+            {products.length === 0 ? (
+              <div className="flex-1 bg-white border border-gray-100 rounded-3xl p-12 flex flex-col items-center justify-center text-center">
+                <h3 className="text-lg font-bold text-[#D31329]">Lade Produkte...</h3>
+              </div>
+            ) : (
+              <div className="flex-1 overflow-y-auto grid grid-cols-3 gap-4 pr-2 max-h-[calc(100vh-280px)]">
+                {products
+                  .filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
+                  .map(product => (
+                    <button
+                      key={product._id}
+                      onClick={() => addToCart(product)}
+                      className="p-5 bg-white border border-gray-100/80 hover:border-[#D31329] rounded-3xl shadow-sm hover:shadow-xl text-left flex flex-col justify-between h-36 transition-all duration-300 hover:-translate-y-0.5 active:scale-95 group"
                   >
                     <div>
-                      <span className="text-[10px] font-bold text-[#D31329] tracking-widest uppercase bg-[#D31329]/5 px-2 py-0.5 rounded-full">{product.group}</span>
+                      <span className="text-[10px] font-bold text-[#D31329] tracking-widest uppercase bg-[#D31329]/10 px-2 py-0.5 rounded-full">{product.group}</span>
                       <h3 className="text-sm font-bold text-gray-800 line-clamp-2 mt-2 group-hover:text-[#D31329] transition-colors">{product.name}</h3>
                     </div>
                     <span className="text-base font-bold text-[#D31329] mt-4">
@@ -310,6 +344,12 @@ export default function PosInterface() {
                   <span className="font-bold text-sm text-[#D31329]">{(item.priceAtSale * item.quantity).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>
                 </div>
               ))}
+              {cart.length === 0 && (
+                <div className="text-center py-16 text-gray-300 flex flex-col items-center">
+                  <span className="text-4xl mb-2">🛒</span>
+                  <p className="text-xs font-bold uppercase tracking-wider text-gray-400">Der Warenkorb ist leer</p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -326,7 +366,7 @@ export default function PosInterface() {
               Kauf abschließen
             </button>
             {lastSaleId && (
-              <button onClick={handleStorno} className="w-full mt-2 py-2 bg-red-50 hover:bg-red-100 text-[#D31329] font-bold rounded-xl text-xs uppercase tracking-wider">Stornieren</button>
+              <button onClick={handleStorno} className="w-full mt-2 py-2 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-xl text-xs uppercase tracking-wider">Stornieren</button>
             )}
           </div>
         </aside>
@@ -431,6 +471,46 @@ export default function PosInterface() {
               ) : (
                 <button onClick={() => setShowTutorial(false)} className="px-4 py-2 bg-[#D31329] hover:bg-[#b01020] text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-all">Fertig</button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* COOLE KINO-SPALT-ÖFFNUNGS-ANIMATION (Wird beim Laden eingeblendet) */}
+      {isTransitioning && (
+        <div className="fixed inset-0 z-50 overflow-hidden flex select-none pointer-events-auto">
+          {/* Linker Tor-Flügel */}
+          <div 
+            className={`w-1/2 h-full bg-[#0B2F5C] dark:bg-zinc-950 border-r border-[#F2B600]/10 flex justify-end items-center transition-transform duration-1000 ease-in-out ${
+              startSplitting ? '-translate-x-full' : 'translate-x-0'
+            }`}
+          >
+            {/* Feine, goldene vertikale Schnittlinie auf der Innenkante */}
+            <div className={`h-full w-px bg-[#F2B600]/40 transition-opacity duration-300 ${startSplitting ? 'opacity-0' : 'opacity-100'}`} />
+          </div>
+
+          {/* Rechter Tor-Flügel */}
+          <div 
+            className={`w-1/2 h-full bg-[#0B2F5C] dark:bg-zinc-950 border-l border-[#F2B600]/10 flex justify-start items-center transition-transform duration-1000 ease-in-out ${
+              startSplitting ? 'translate-x-full' : 'translate-x-0'
+            }`}
+          >
+            {/* Feine, goldene vertikale Schnittlinie auf der Innenkante */}
+            <div className={`h-full w-px bg-[#F2B600]/40 transition-opacity duration-300 ${startSplitting ? 'opacity-0' : 'opacity-100'}`} />
+          </div>
+
+          {/* Mittig schwebendes, pulsierendes Regenbogen-Logo */}
+          <div 
+            className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 transition-all duration-700 ease-in-out ${
+              startSplitting ? 'opacity-0 scale-90' : 'opacity-100 scale-100'
+            }`}
+          >
+            <div className="p-4 bg-white dark:bg-zinc-900 rounded-full shadow-[0_0_50px_rgba(211,19,41,0.25)] animate-pulse-glow">
+              <img 
+                src="/logo.png" 
+                alt="Weltladen Logo" 
+                className="h-28 w-28 object-contain rounded-full"
+              />
             </div>
           </div>
         </div>
