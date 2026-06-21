@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+const mongoose = require('mongoose');
 
 const SaleSchema = new mongoose.Schema({
   items: [{
@@ -16,4 +16,4 @@ const SaleSchema = new mongoose.Schema({
   saleDate: { type: String, required: true }
 }, { timestamps: true });
 
-export default mongoose.models.Sale || mongoose.model('Sale', SaleSchema);
+module.exports = mongoose.models.Sale || mongoose.model('Sale', SaleSchema);
