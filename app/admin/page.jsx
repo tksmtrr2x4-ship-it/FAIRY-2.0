@@ -1,34 +1,15 @@
-// app/admin/page.jsx - [Der exakte, stabile Stand vom 18.06. im St. Ursula Design]
+// app/admin/page.jsx - [Admin-Dashboard mit Passwort-Gate und Web-NFC-Anlern-Login]
 'use client';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 
-// DYNAMISCHER IMPORT DER CHART-KOMPONENTEN (Verhindert stumme Browser-Hydrations-Abstürze)
-const ResponsiveContainer = dynamic(
-  () => import('recharts').then((mod) => mod.ResponsiveContainer),
-  { ssr: false }
-);
-const BarChart = dynamic(
-  () => import('recharts').then((mod) => mod.BarChart),
-  { ssr: false }
-);
-const Bar = dynamic(
-  () => import('recharts').then((mod) => mod.Bar),
-  { ssr: false }
-);
-const XAxis = dynamic(
-  () => import('recharts').then((mod) => mod.XAxis),
-  { ssr: false }
-);
-const YAxis = dynamic(
-  () => import('recharts').then((mod) => mod.YAxis),
-  { ssr: false }
-);
-const Tooltip = dynamic(
-  () => import('recharts').then((mod) => mod.Tooltip),
-  { ssr: false }
-);
+const ResponsiveContainer = dynamic(() => import('recharts').then((mod) => mod.ResponsiveContainer), { ssr: false });
+const BarChart = dynamic(() => import('recharts').then((mod) => mod.BarChart), { ssr: false });
+const Bar = dynamic(() => import('recharts').then((mod) => mod.Bar), { ssr: false });
+const XAxis = dynamic(() => import('recharts').then((mod) => mod.XAxis), { ssr: false });
+const YAxis = dynamic(() => import('recharts').then((mod) => mod.YAxis), { ssr: false });
+const Tooltip = dynamic(() => import('recharts').then((mod) => mod.Tooltip), { ssr: false });
 
 export default function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -44,17 +25,24 @@ export default function AdminDashboard() {
   const [liveTime, setLiveTime] = useState('');
   const [liveDate, setLiveDate] = useState('');
 
-  // Perioden Creator States
-  const [newPeriodName, setNewPeriodName] = useState('');
-  const [newStartDate, setNewStartDate] = useState('');
-  const [newEndDate, setNewEndDate] = useState('');
+  // NFC States (Lockscreen & Dashboard)
+  const [nfcSupported, setNfcSupported] = useState(false);
+  const [isNfcScanning, setIsNfcScanning] = useState(false);
+  const [nfcStatusText, setNfcStatusText] = useState('');
+  const [isRegisteringNfc, setIsRegisteringNfc] = useState(false);
 
   // System-Config States
   const [bannerActive, setBannerActive] = useState(false);
   const [bannerMessage, setBannerMessage] = useState('');
   const [maintenanceActive, setMaintenanceActive] = useState(false);
+  const [adminNfcUIDs, setAdminNfcUIDs] = useState([]);
 
-  // Crash-sichere Uhrzeitformatierung
+  // Perioden Creator States
+  const [newPeriodName, setNewPeriodName] = useState('');
+  const [newStartDate, setNewStartDate] = useState('');
+  const [newEndDate, setNewEndDate] = useState('');
+
+  // Formatierer
   const safeFormatTime = (dateStr) => {
     if (!dateStr) return '';
     const d = new Date(dateStr);
@@ -62,12 +50,24 @@ export default function AdminDashboard() {
     return d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
   };
 
-  // Dark-Mode initialisieren
+  const safeFormatDate = (dateStr) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString('de-DE');
+  };
+
+  // NFC & Dark-Mode initialisieren
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
       setIsDarkMode(true);
       document.documentElement.classList.add('dark');
+    }
+
+    // Prüfen, ob der Browser Web NFC (NDEFReader) unterstützt
+    if (typeof window !== 'undefined' && 'NDEFReader' in window) {
+      setNfcSupported(true);
     }
 
     const auth = localStorage.getItem('admin_auth');
@@ -86,6 +86,77 @@ export default function AdminDashboard() {
     }
   };
 
+  // NFC LOGIN LOGIK (Web NFC)
+  const handleNfcLogin = async () => {
+    if (!nfcSupported) return;
+    try {
+      setIsNfcScanning(true);
+      setNfcStatusText("Bitte halte deinen NFC-Ausweis an das Lesegerät...");
+      
+      const ndef = new NDEFReader();
+      await ndef.scan();
+      
+      ndef.addEventListener("readingerror", () => {
+        setNfcStatusText("Ausweis konnte nicht gelesen werden. Bitte erneut versuchen.");
+      });
+
+      ndef.addEventListener("reading", async ({ serialNumber }) => {
+        // Lade die aktuellsten NFC-UIDs vom Server herunter
+        const resSettings = await fetch('/api/settings');
+        const dataSettings = await resSettings.json();
+        const allowedUIDs = dataSettings.settings?.adminNfcUIDs || [];
+
+        if (allowedUIDs.includes(serialNumber)) {
+          localStorage.setItem('admin_auth', 'true');
+          setIsAuthenticated(true);
+          setNfcStatusText("");
+          setIsNfcScanning(false);
+          alert("NFC-Anmeldung erfolgreich! Willkommen in der Systemsteuerung.");
+        } else {
+          setNfcStatusText(`Unbekannter Ausweis (UID: ${serialNumber}). Zutritt verweigert.`);
+        }
+      });
+    } catch (error) {
+      console.error(error);
+      setNfcStatusText("NFC-Scan abgebrochen oder fehlgeschlagen.");
+      setIsNfcScanning(false);
+    }
+  };
+
+  // NFC ANLERNEN (NEUEN AUSWEIS IM DASHBOARD REGISTRIEREN)
+  const handleRegisterNfcCard = async () => {
+    if (!nfcSupported) {
+      alert("NFC wird von diesem Gerät oder Browser nicht unterstützt.");
+      return;
+    }
+    try {
+      setIsRegisteringNfc(true);
+      alert("NFC-Leser aktiv. Bitte halte jetzt die neue Karte an die Rückseite deines Geräts.");
+      
+      const ndef = new NDEFReader();
+      await ndef.scan();
+
+      ndef.addEventListener("reading", ({ serialNumber }) => {
+        if (adminNfcUIDs.includes(serialNumber)) {
+          alert(`Diese Karte ist bereits registriert (UID: ${serialNumber})`);
+          setIsRegisteringNfc(false);
+          return;
+        }
+        setAdminNfcUIDs([...adminNfcUIDs, serialNumber]);
+        alert(`Ausweis erfolgreich angelernt (UID: ${serialNumber})! Klicke unten auf 'Konfigurationen speichern', um die Karte dauerhaft zu sichern.`);
+        setIsRegisteringNfc(false);
+      });
+    } catch (err) {
+      console.error(err);
+      alert("Verbindung abgebrochen.");
+      setIsRegisteringNfc(false);
+    }
+  };
+
+  const handleDeleteNfcUid = (uidToDelete) => {
+    setAdminNfcUIDs(adminNfcUIDs.filter(uid => uid !== uidToDelete));
+  };
+
   const handleLogin = (e) => {
     e.preventDefault();
     if (passcode === 'StUrsulaWeltladen2026') {
@@ -101,7 +172,6 @@ export default function AdminDashboard() {
     setIsAuthenticated(false);
   };
 
-  // Live-Uhrzeit & Datum absolut hydrations-sicher initialisieren
   useEffect(() => {
     if (!isAuthenticated) return;
     const updateClock = () => {
@@ -144,6 +214,7 @@ export default function AdminDashboard() {
           setBannerActive(data.settings.bannerActive);
           setBannerMessage(data.settings.bannerMessage);
           setMaintenanceActive(data.settings.maintenanceActive);
+          setAdminNfcUIDs(data.settings.adminNfcUIDs || []);
         }
       })
       .catch(err => console.error(err));
@@ -178,7 +249,6 @@ export default function AdminDashboard() {
     if (res.ok) loadData();
   };
 
-  // CRUD: Neues Produkt hinzufügen (FormData macht es im VS-Code-Editor 100% fehlerfrei)
   const handleAddProduct = async (e) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -214,7 +284,12 @@ export default function AdminDashboard() {
     const res = await fetch('/api/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ bannerActive, bannerMessage, maintenanceActive })
+      body: JSON.stringify({ 
+        bannerActive, 
+        bannerMessage, 
+        maintenanceActive,
+        adminNfcUIDs // <--- Sichert alle angelernten NFC-IDs in MongoDB
+      })
     });
     if (res.ok) alert("Systemkonfiguration erfolgreich aktualisiert!");
   };
@@ -263,21 +338,41 @@ export default function AdminDashboard() {
     });
   };
 
+  // RENDER INTERAKTIVER NFC & PASSCODE LOCKSCREEN
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-[#F5F5F7] flex flex-col items-center justify-center font-sans">
         <form onSubmit={handleLogin} className="bg-white/80 backdrop-blur-md p-10 rounded-3xl shadow-xl max-w-sm w-full border border-white/20 text-center animate-fade-in">
-          <span className="text-4xl mb-4 block">🔒</span>
+          <span className="text-4xl mb-4 block animate-bounce">🔒</span>
           <h2 className="text-xl font-bold text-[#D31329] mb-2 tracking-tight">Admin-Bereich geschützt</h2>
           <p className="text-xs text-gray-400 mb-6 font-semibold uppercase tracking-wider">St. Ursula Weltladen Villingen</p>
+          
           <input 
             type="password" 
             placeholder="Kennwort eingeben..."
             value={passcode}
             onChange={(e) => setPasscode(e.target.value)}
-            className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-4 focus:ring-[#D31329]/10 focus:border-[#D31329] text-center font-bold tracking-widest mb-4"
+            className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-4 focus:ring-[#D31329]/10 focus:border-[#D31329] text-center font-bold tracking-widest mb-4 text-gray-800"
           />
-          <button type="submit" className="w-full py-3.5 bg-[#D31329] hover:bg-[#b01020] text-white font-bold rounded-2xl transition-all active:scale-95 shadow-md">Entsperren</button>
+          <button type="submit" className="w-full py-3.5 bg-[#D31329] hover:bg-[#b01020] text-white font-bold rounded-2xl transition-all active:scale-95 shadow-md mb-4">
+            Entsperren
+          </button>
+
+          {/* Web NFC Umschalter */}
+          {nfcSupported && (
+            <div className="border-t border-gray-100 pt-4 mt-2">
+              <button
+                type="button"
+                onClick={handleNfcLogin}
+                className={`w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl text-xs uppercase tracking-wider transition-all active:scale-95 flex items-center justify-center gap-2 ${isNfcScanning ? 'animate-pulse' : ''}`}
+              >
+                {isNfcScanning ? '⏳ NFC-Leser aktiv...' : '📳 Mit NFC-Ausweis anmelden'}
+              </button>
+              {nfcStatusText && (
+                <p className="text-[10px] text-emerald-600 font-bold mt-2 animate-pulse">{nfcStatusText}</p>
+              )}
+            </div>
+          )}
         </form>
       </div>
     );
@@ -285,9 +380,7 @@ export default function AdminDashboard() {
 
   return (
     <div className={isDarkMode ? 'dark' : ''}>
-      <div className="min-h-screen bg-[#F5F5F7] dark:bg-zinc-950 text-[#1D1D1F] dark:text-zinc-100 p-8 font-sans antialiased flex flex-col justify-between selection:bg-[#D31329] selection:text-white transition-colors duration-500">
-        
-        {/* Haupt-Inhalt */}
+      <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 text-[#1D1D1F] dark:text-zinc-100 p-8 font-sans antialiased flex flex-col justify-between selection:bg-[#D31329] selection:text-white transition-colors duration-500">
         <div>
           <header className="flex justify-between items-center mb-8 border-b pb-6 border-gray-200 dark:border-zinc-800">
             <div className="flex items-center gap-4">
@@ -326,7 +419,7 @@ export default function AdminDashboard() {
           </div>
 
           <div className="grid grid-cols-12 gap-8 mb-8">
-            <section className="col-span-6 bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-200/50 dark:border-zinc-800 shadow-sm h-[380px] flex flex-col justify-between">
+            <section className="col-span-6 bg-white p-6 rounded-3xl border border-gray-200/50 dark:border-zinc-800 shadow-sm h-[380px] flex flex-col justify-between">
               <h2 className="text-lg font-bold text-[#D31329] mb-6">Best-Selling Products</h2>
               <div className="h-72 w-full">
                 <ResponsiveContainer width="100%" height="100%">
@@ -340,18 +433,30 @@ export default function AdminDashboard() {
               </div>
             </section>
 
-            {/* SYSTEMSTEUERUNG */}
+            {/* SYSTEMSTEUERUNG (Aktionsbanner, Wartungsmodus & NFC Anlernen) */}
             <section className="col-span-6 bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-200/50 dark:border-zinc-800 shadow-sm h-[380px] flex flex-col justify-between">
               <h2 className="text-lg font-bold text-[#D31329]">Kassensystem konfigurieren</h2>
               <form onSubmit={handleSaveConfig} className="flex flex-col gap-4 mt-4 h-full justify-between">
                 <div className="flex flex-col gap-3">
-                  <div className="flex items-center justify-between bg-[#F5F5F7] dark:bg-zinc-950 p-3 rounded-xl border dark:border-zinc-800">
+                  <div className="flex items-center justify-between bg-[#F5F5F7] dark:bg-zinc-950 p-2.5 rounded-xl border dark:border-zinc-850">
                     <span className="text-xs font-bold uppercase text-gray-500 dark:text-zinc-400 tracking-wider">Aktionsbanner anzeigen?</span>
                     <input type="checkbox" checked={bannerActive} onChange={(e) => setBannerActive(e.target.checked)} className="h-5 w-5 text-[#D31329] focus:ring-[#D31329]" />
                   </div>
-                  <div className="flex items-center justify-between bg-red-50 dark:bg-red-950/10 p-3 rounded-xl border border-red-100 dark:border-red-900/30">
-                    <span className="text-xs font-bold uppercase text-red-600 tracking-wider">⚠️ Systemweiten Wartungsmodus aktivieren?</span>
+                  <div className="flex items-center justify-between bg-red-50 dark:bg-red-950/10 p-2.5 rounded-xl border border-red-100 dark:border-red-900/30">
+                    <span className="text-xs font-bold uppercase text-red-600 tracking-wider">⚠️ Wartungsmodus aktivieren?</span>
                     <input type="checkbox" checked={maintenanceActive} onChange={(e) => setMaintenanceActive(e.target.checked)} className="h-5 w-5 text-red-600 focus:ring-red-500" />
+                  </div>
+                  {/* NFC ANLERN-CONTROL */}
+                  <div className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-950/10 p-2.5 rounded-xl border border-emerald-100 dark:border-emerald-900/30">
+                    <span className="text-xs font-bold uppercase text-emerald-600 dark:text-emerald-400 tracking-wider">📳 Admin-NFC-Ausweis anlernen</span>
+                    <button 
+                      type="button" 
+                      onClick={handleRegisterNfcCard}
+                      disabled={isRegisteringNfc}
+                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-bold rounded-lg text-[10px] uppercase tracking-wider transition-all"
+                    >
+                      {isRegisteringNfc ? 'Scanne...' : 'Anlernen'}
+                    </button>
                   </div>
                 </div>
                 <div>
@@ -362,6 +467,30 @@ export default function AdminDashboard() {
               </form>
             </section>
           </div>
+
+          {/* DYNAMISCHER REGISTER-ANLERN-MODUS (NFC KARTEN LISTE) */}
+          {adminNfcUIDs.length > 0 && (
+            <div className="grid grid-cols-12 gap-8 mb-8">
+              <section className="col-span-12 bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-200/50 dark:border-zinc-800 shadow-sm">
+                <h2 className="text-lg font-bold text-emerald-600 dark:text-emerald-400 mb-2">Registrierte Admin-NFC-Ausweise</h2>
+                <p className="text-xs text-gray-400 mb-6 font-medium">Diese Ausweise können sich am Kassen-Gerät kontaktlos ohne Passwort einloggen.</p>
+                <div className="flex flex-wrap gap-3">
+                  {adminNfcUIDs.map(uid => (
+                    <div key={uid} className="flex items-center gap-3 bg-emerald-50 dark:bg-emerald-950/20 px-4 py-2 rounded-2xl border border-emerald-100 dark:border-emerald-900/30 text-emerald-800 dark:text-emerald-300 font-bold font-mono text-xs">
+                      <span>📇 ID: {uid}</span>
+                      <button 
+                        onClick={() => handleDeleteNfcUid(uid)}
+                        className="text-red-500 hover:text-red-700 font-sans font-bold text-sm ml-2"
+                        title="Ausweis löschen"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </div>
+          )}
 
           {/* ABRECHNUNGSZEITRÄUME VERWALTEN */}
           <div className="grid grid-cols-12 gap-8 mb-8">
@@ -425,7 +554,7 @@ export default function AdminDashboard() {
           </div>
 
           <div className="grid grid-cols-12 gap-8 mb-8">
-            <section className="col-span-12 bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-200/50 dark:border-zinc-800 shadow-sm animate-fade-in">
+            <section className="col-span-12 bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-200/50 dark:border-zinc-800 shadow-sm">
               <h2 className="text-lg font-bold text-[#D31329] mb-4">Editierbares Produktregister</h2>
               <div className="overflow-y-auto max-h-72">
                 <table className="w-full text-left border-collapse">
@@ -441,7 +570,7 @@ export default function AdminDashboard() {
           </div>
 
           <div className="grid grid-cols-12 gap-8 mb-8">
-            <section className="col-span-12 bg-white p-6 dark:bg-zinc-900 rounded-3xl border border-gray-200/50 dark:border-zinc-800 shadow-sm mb-8 animate-fade-in">
+            <section className="col-span-12 bg-white p-6 dark:bg-zinc-900 rounded-3xl border border-gray-200/50 dark:border-zinc-800 shadow-sm mb-8">
               <h2 className="text-lg font-bold text-[#D31329] mb-4">Transaktionsjournal</h2>
               <p className="text-xs text-gray-400 mb-6 font-medium">Zeigt genau die Belege an, die zum oben ausgewählten Abrechnungszeitraum gehören.</p>
               <div className="overflow-y-auto max-h-96">
