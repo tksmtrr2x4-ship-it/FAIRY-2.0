@@ -1,7 +1,9 @@
-// app/api/settings/route.js - [Datenbank-Schnittstelle für Globale Einstellungen & NFC-UIDs]
 import dbConnect from '@/lib/dbConnect';
 import mongoose from 'mongoose';
 import { NextResponse } from 'next/server';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET() {
   try {
@@ -9,10 +11,9 @@ export async function GET() {
     const Settings = mongoose.models.Settings;
     let config = await Settings.findOne({ key: 'siteConfig' });
     if (!config) {
-      // Fügt standardmäßig das Feld adminNfcUIDs für die NFC-Seriennummern hinzu
       config = new Settings({ 
         key: 'siteConfig', 
-        value: { bannerActive: false, bannerMessage: 'Willkommen!', maintenanceActive: false, adminNfcUIDs: [] } 
+        value: { bannerActive: false, bannerMessage: 'Willkommen!', maintenanceActive: false } 
       });
       await config.save();
     }
@@ -27,11 +28,11 @@ export async function POST(req) {
     await dbConnect();
     const Settings = mongoose.models.Settings;
     const body = await req.json();
-    const { bannerActive, bannerMessage, maintenanceActive, adminNfcUIDs } = body;
+    const { bannerActive, bannerMessage, maintenanceActive } = body;
 
     const updated = await Settings.findOneAndUpdate(
       { key: 'siteConfig' },
-      { value: { bannerActive, bannerMessage, maintenanceActive, adminNfcUIDs: adminNfcUIDs || [] } },
+      { value: { bannerActive, bannerMessage, maintenanceActive } },
       { new: true, upsert: true }
     );
 

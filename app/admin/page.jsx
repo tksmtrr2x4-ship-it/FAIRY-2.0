@@ -134,8 +134,8 @@ const AdminDashboardComponent = () => {
     }
   }, [isAuthenticated]);
 
-  const loadData = () => {
-    fetch('/api/periods')
+const loadData = () => {
+    fetch('/api/periods', { cache: 'no-store' }) // <--- ZWINGT DEN BROWSER ZUR LIVE-ABFRAGE!
       .then(res => res.json())
       .then(data => {
         if (data.success && data.periods) {
@@ -147,17 +147,17 @@ const AdminDashboardComponent = () => {
         }
       });
 
-    fetch('/api/products')
+    fetch('/api/products', { cache: 'no-store' })
       .then(res => res.json())
       .then(data => { if (data.products) setProducts(data.products); })
       .catch(err => console.error(err));
 
-    fetch('/api/sales')
+    fetch('/api/sales', { cache: 'no-store' })
       .then(res => res.json())
       .then(data => { if (data.success && data.sales) setSalesJournal(data.sales); })
       .catch(err => console.error(err));
 
-    fetch('/api/settings')
+    fetch('/api/settings', { cache: 'no-store' })
       .then(res => res.json())
       .then(data => {
         if (data.success && data.settings) {
@@ -180,7 +180,7 @@ const AdminDashboardComponent = () => {
     const activePeriod = periods.find(p => p._id === selectedPeriodId);
     if (!activePeriod) return;
 
-    fetch(`/api/admin/stats?startDate=${activePeriod.startDate}&endDate=${activePeriod.endDate}`)
+   fetch(`/api/admin/stats?startDate=${activePeriod.startDate}&endDate=${activePeriod.endDate}`, { cache: 'no-store' }) // <--- ZWINGT ZUM LIVE-ABGLEICH
       .then(res => res.json())
       .then(data => {
         if (data.summary) setStats(data.summary);

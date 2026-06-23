@@ -64,12 +64,12 @@ export default function PosInterface() {
   };
 
   const loadData = () => {
-    fetch('/api/products')
+    fetch('/api/products', { cache: 'no-store' }) // <--- ZWINGT DEN BROWSER ZUR LIVE-ABFRAGE!
       .then(res => res.json())
       .then(data => { if (data.products) setProducts(data.products); })
       .catch(err => console.error(err));
 
-    fetch('/api/settings')
+    fetch('/api/settings', { cache: 'no-store' })
       .then(res => res.json())
       .then(data => { if (data.success && data.settings) setConfig(data.settings); })
       .catch(err => console.error(err));

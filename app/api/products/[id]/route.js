@@ -1,12 +1,14 @@
-// app/api/products/[id]/route.js - [Ausfallsichere Produkt-ID-API]
 import dbConnect from '@/lib/dbConnect';
 import mongoose from 'mongoose';
 import { NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function PUT(req, { params }) {
   try {
     await dbConnect();
-    const Product = mongoose.models.Product; // Holt das global registrierte Modell
+    const Product = mongoose.models.Product;
     const { id } = params;
     const { price, name, group, vatRate } = await req.json();
 
@@ -26,10 +28,11 @@ export async function PUT(req, { params }) {
 export async function DELETE(req, { params }) {
   try {
     await dbConnect();
-    const Product = mongoose.models.Product; // Holt das global registrierte Modell
+    const Product = mongoose.models.Product;
     const { id } = params;
-    const deletedProduct = await Product.findByIdAndUpdate(id, { active: false }, { new: true });
-    return NextResponse.json({ success: true, product: deletedProduct });
+
+    await Product.findByIdAndDelete(id); // Echtes Löschen
+    return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

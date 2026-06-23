@@ -1,23 +1,22 @@
-// app/api/admin/stats/route.js - [Die korrekte, dynamische Datumsbereichs-API]
 import dbConnect from '@/lib/dbConnect';
 import mongoose from 'mongoose';
 import { NextResponse } from 'next/server';
 
-const Sale = mongoose.models.Sale;
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET(req) {
   try {
     await dbConnect();
+    const Sale = mongoose.models.Sale;
     const url = new URL(req.url);
     
-    // Liest die vom Perioden-Manager übergebenen Start- und Enddaten aus
     const startDate = url.searchParams.get('startDate');
     const endDate = url.searchParams.get('endDate');
     const dateParam = url.searchParams.get('date');
 
     let query = { storno: false };
 
-    // DYNAMISCHE BILANZ FILTERUNG NACH DATUMSBEREICH
     if (startDate && endDate) {
       query.saleDate = { $gte: startDate, $lte: endDate };
     } else {
