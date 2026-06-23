@@ -1,9 +1,10 @@
-// app/admin/page.jsx - [Admin-Dashboard mit korrigierter Tor-Öffnungs-Logik]
+// app/admin/page.jsx - [Vollkommen abgesichert gegen Prerender-Fehler mit ssr: false]
 'use client';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 
+// DYNAMISCHER IMPORT DER CHART-KOMPONENTEN
 const ResponsiveContainer = dynamic(() => import('recharts').then((mod) => mod.ResponsiveContainer), { ssr: false });
 const BarChart = dynamic(() => import('recharts').then((mod) => mod.BarChart), { ssr: false });
 const Bar = dynamic(() => import('recharts').then((mod) => mod.Bar), { ssr: false });
@@ -11,7 +12,8 @@ const XAxis = dynamic(() => import('recharts').then((mod) => mod.XAxis), { ssr: 
 const YAxis = dynamic(() => import('recharts').then((mod) => mod.YAxis), { ssr: false });
 const Tooltip = dynamic(() => import('recharts').then((mod) => mod.Tooltip), { ssr: false });
 
-export default function AdminDashboard() {
+// Haupt-Komponente als Container-Funktion definieren
+const AdminDashboardComponent = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passcode, setPasscode] = useState('');
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -35,7 +37,7 @@ export default function AdminDashboard() {
   const [bannerMessage, setBannerMessage] = useState('');
   const [maintenanceActive, setMaintenanceActive] = useState(false);
 
-  // Cinematic Loading States (Startet jetzt geschlossen 'false', um nicht auszusperren)
+  // Cinematic Loading States
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [startSplitting, setStartSplitting] = useState(false);
 
@@ -78,7 +80,21 @@ export default function AdminDashboard() {
     }
   };
 
-  // Live-Uhrzeit & Datum absolut hydrations-sicher initialisieren
+  const handleLogin = (e) => {
+    e.preventDefault();
+    if (passcode === 'StUrsulaWeltladen2026') {
+      localStorage.setItem('admin_auth', 'true');
+      setIsAuthenticated(true);
+    } else {
+      alert("Falsches Admin-Kennwort!");
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('admin_auth');
+    setIsAuthenticated(false);
+  };
+
   useEffect(() => {
     if (!isAuthenticated) return;
     const updateClock = () => {
@@ -272,7 +288,7 @@ export default function AdminDashboard() {
             placeholder="Kennwort eingeben..."
             value={passcode}
             onChange={(e) => setPasscode(e.target.value)}
-            className="w-full px-4 py-3 rounded-2xl border border-gray-200 bg-white text-center font-bold tracking-widest mb-4"
+            className="w-full px-4 py-3 rounded-2xl border border-gray-200 bg-white text-center font-bold tracking-widest mb-4 text-gray-800"
           />
           <button type="submit" className="w-full py-3.5 bg-[#D31329] hover:bg-[#b01020] text-white font-bold rounded-2xl transition-all active:scale-95 shadow-md">
             Entsperren
@@ -319,8 +335,8 @@ export default function AdminDashboard() {
 
           {/* KPI Dashboard */}
           <div className="grid grid-cols-3 gap-6 mb-8">
-            <div className="bg-white p-6 rounded-3xl border border-gray-150 dark:border-zinc-800 shadow-sm"><p className="text-xs text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider">Umsatz (Brutto)</p><p className="text-3xl font-extrabold text-[#D31329] mt-2">{stats.totalRevenue.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</p></div>
-            <div className="bg-white p-6 rounded-3xl border border-gray-150 dark:border-zinc-800 shadow-sm"><p className="text-xs text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider">Umsatz (Netto)</p><p className="text-3xl font-extrabold text-[#8E8E93] mt-2">{stats.totalNetto?.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }) || '0,00 €'}</p></div>
+            <div className="bg-white p-6 dark:bg-zinc-900 rounded-3xl border border-gray-150 dark:border-zinc-800 shadow-sm"><p className="text-xs text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider">Umsatz (Brutto)</p><p className="text-3xl font-extrabold text-[#D31329] mt-2">{stats.totalRevenue.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</p></div>
+            <div className="bg-white p-6 dark:bg-zinc-900 rounded-3xl border border-gray-150 dark:border-zinc-800 shadow-sm"><p className="text-xs text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider">Umsatz (Netto)</p><p className="text-3xl font-extrabold text-[#8E8E93] mt-2">{stats.totalNetto?.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }) || '0,00 €'}</p></div>
             <div className="bg-white p-6 dark:bg-zinc-900 rounded-3xl border border-gray-150 dark:border-zinc-800 shadow-sm"><p className="text-xs text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider">Belege gesamt</p><p className="text-3xl font-extrabold mt-2 text-gray-700 dark:text-zinc-200">{stats.salesCount} Belege</p></div>
           </div>
 
@@ -414,17 +430,17 @@ export default function AdminDashboard() {
             <section className="col-span-12 bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-200/50 dark:border-zinc-800 shadow-sm">
               <h2 className="text-lg font-bold text-[#D31329] mb-6">Neues Produkt hinzufügen</h2>
               <form onSubmit={handleAddProduct} className="grid grid-cols-4 gap-4">
-                <input type="text" name="pname" placeholder="Produktname" className="px-4 py-3 rounded-xl border dark:border-zinc-800 bg-white dark:bg-zinc-950 text-gray-850 dark:text-zinc-100 font-medium focus:ring-2 focus:ring-[#D31329]/20 focus:border-[#D31329] outline-none" required />
+                <input type="text" name="pname" placeholder="Produktname" className="px-4 py-3 rounded-xl border dark:border-zinc-800 bg-white dark:bg-zinc-950 text-gray-800 dark:text-zinc-100 font-medium focus:ring-2 focus:ring-[#D31329]/20 focus:border-[#D31329] outline-none" required />
                 <select name="pgroup" className="px-4 py-3 rounded-xl border dark:border-zinc-800 bg-white dark:bg-zinc-950 text-gray-800 dark:text-zinc-100 font-medium focus:ring-2 focus:ring-[#D31329]/20 focus:border-[#D31329] outline-none"><option value="Lebensmittel">Lebensmittel</option><option value="Unverpackt; Lebensmittel">Unverpackt; Lebensmittel</option><option value="Schreibwaren">Schreibwaren</option><option value="Sonstige">Sonstige</option></select>
                 <input type="number" step="0.05" name="pprice" placeholder="Preis (€)" className="px-4 py-3 rounded-xl border dark:border-zinc-800 bg-white dark:bg-zinc-950 text-gray-800 dark:text-zinc-100 font-medium focus:ring-2 focus:ring-[#D31329]/20 focus:border-[#D31329] outline-none" required />
                 <select name="pvat" className="px-4 py-3 rounded-xl border dark:border-zinc-800 bg-white dark:bg-zinc-950 text-gray-800 dark:text-zinc-100 font-medium focus:ring-2 focus:ring-[#D31329]/20 focus:border-[#D31329] outline-none"><option value={7}>7% (Essen)</option><option value={19}>19% (Zubehör)</option></select>
-                <button type="submit" className="col-span-4 py-3.5 bg-[#D31329] hover:bg-[#b01020] text-white font-bold rounded-xl shadow-md transition-all active:scale-95">Produkt hinzufügen</button>
+                <button type="submit" className="col-span-4 py-3.5 bg-[#D31329] hover:bg-[#b01020] text-white font-bold rounded-xl shadow-md transition-all">Produkt hinzufügen</button>
               </form>
             </section>
           </div>
 
           <div className="grid grid-cols-12 gap-8 mb-8">
-            <section className="col-span-12 bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-200/50 dark:border-zinc-800 shadow-sm animate-fade-in">
+            <section className="col-span-12 bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-200/50 dark:border-zinc-800 shadow-sm mb-8 animate-fade-in">
               <h2 className="text-lg font-bold text-[#D31329] mb-4">Editierbares Produktregister</h2>
               <div className="overflow-y-auto max-h-72">
                 <table className="w-full text-left border-collapse">
@@ -541,4 +557,7 @@ export default function AdminDashboard() {
       </div>
     </div>
   );
-}
+};
+
+// EXPORT MIT AUSSCHLIESSLICHEM CLIENT-RENDERING (Verhindert jegliche Prerender-Fehler auf Vercel!)
+export default dynamic(() => Promise.resolve(AdminDashboardComponent), { ssr: false });
