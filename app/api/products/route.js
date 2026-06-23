@@ -1,3 +1,4 @@
+// app/api/products/route.js - [Ausfallsichere Produkt-API]
 import dbConnect from '@/lib/dbConnect';
 import mongoose from 'mongoose';
 import { NextResponse } from 'next/server';
@@ -5,7 +6,7 @@ import { NextResponse } from 'next/server';
 export async function GET() {
   try {
     await dbConnect();
-    const Product = mongoose.models.Product;
+    const Product = mongoose.models.Product; // Holt das global registrierte Modell
     const products = await Product.find({ active: { $ne: false } }).sort({ nr: 1 });
     return NextResponse.json({ products });
   } catch (error) {
@@ -16,7 +17,7 @@ export async function GET() {
 export async function POST(req) {
   try {
     await dbConnect();
-    const Product = mongoose.models.Product;
+    const Product = mongoose.models.Product; // Holt das global registrierte Modell
     const body = await req.json();
     const { name, group, basePrice, vatRate } = body;
 
