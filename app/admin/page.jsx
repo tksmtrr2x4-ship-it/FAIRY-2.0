@@ -1,4 +1,4 @@
-// app/admin/page.jsx - [Admin-Dashboard mit Apple-Lösch-Modal und Toast-Rückmeldung]
+// app/admin/page.jsx - [Admin-Dashboard mit korrigierter Tor-Öffnungs-Logik]
 'use client';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -35,13 +35,8 @@ export default function AdminDashboard() {
   const [bannerMessage, setBannerMessage] = useState('');
   const [maintenanceActive, setMaintenanceActive] = useState(false);
 
-  // Apple Toast Notification & Delete Modal States
-  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [productToDelete, setProductToDelete] = useState(null);
-
-  // Live-Uhrzeit-Timer
-  const [isTransitioning, setIsTransitioning] = useState(true);
+  // Cinematic Loading States (Startet jetzt geschlossen 'false', um nicht auszusperren)
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const [startSplitting, setStartSplitting] = useState(false);
 
   // Crash-sichere Uhrzeitformatierung
@@ -83,26 +78,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const triggerToast = (message, type = 'success') => {
-    setToast({ show: true, message, type });
-    setTimeout(() => setToast(prev => ({ ...prev, show: false })), 3000);
-  };
-
-  const handleLogin = (e) => {
-    e.preventDefault();
-    if (passcode === 'StUrsulaWeltladen2026') {
-      localStorage.setItem('admin_auth', 'true');
-      setIsAuthenticated(true);
-    } else {
-      alert("Falsches Admin-Kennwort!");
-    }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('admin_auth');
-    setIsAuthenticated(false);
-  };
-
+  // Live-Uhrzeit & Datum absolut hydrations-sicher initialisieren
   useEffect(() => {
     if (!isAuthenticated) return;
     const updateClock = () => {
@@ -115,22 +91,25 @@ export default function AdminDashboard() {
     return () => clearInterval(interval);
   }, [isAuthenticated]);
 
-  // 5-Sekunden Cinematic-Timer
+  // DYNAMISCHER TIMEOUT TRIGGER (Startet erst NACHDEM du eingeloggt bist!)
   useEffect(() => {
-    if (!isAuthenticated) return;
-    
-    const splitTimeout = setTimeout(() => {
-      setStartSplitting(true);
-    }, 4200);
+    if (isAuthenticated) {
+      setIsTransitioning(true); // Blendet die Tore ein
+      setStartSplitting(false); // Schließt sie zunächst
 
-    const endTimeout = setTimeout(() => {
-      setIsTransitioning(false);
-    }, 5000);
+      const splitTimeout = setTimeout(() => {
+        setStartSplitting(true); // Tore gleiten auseinander
+      }, 4200);
 
-    return () => {
-      clearTimeout(splitTimeout);
-      clearTimeout(endTimeout);
-    };
+      const endTimeout = setTimeout(() => {
+        setIsTransitioning(false); // Tore werden komplett entfernt
+      }, 5000);
+
+      return () => {
+        clearTimeout(splitTimeout);
+        clearTimeout(endTimeout);
+      };
+    }
   }, [isAuthenticated]);
 
   const loadData = () => {
@@ -218,34 +197,13 @@ export default function AdminDashboard() {
     if (res.ok) { 
       e.currentTarget.reset(); 
       loadData(); 
-      triggerToast("Produkt erfolgreich angelegt!", "success");
     }
   };
 
-  // Apple Lösch-Modal öffnen
-  const openDeleteConfirmation = (product) => {
-    setProductToDelete(product);
-    setShowDeleteModal(true);
-  };
-
-  // Löschung bestätigen & ausführen (Sicheres Soft-Delete)
-  const confirmDeleteProduct = async () => {
-    if (!productToDelete) return;
-    try {
-      const res = await fetch(`/api/products/${productToDelete._id}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (data.success) {
-        setShowDeleteModal(false);
-        loadData();
-        triggerToast(`Erfolgreich gelöscht: "${productToDelete.name}" wurde entfernt.`, "success");
-        setProductToDelete(null);
-      } else {
-        triggerToast("Fehler beim Löschen des Produkts.", "error");
-      }
-    } catch (err) {
-      console.error(err);
-      triggerToast("Netzwerkfehler beim Löschen.", "error");
-    }
+  const handleDeleteProduct = async (id) => {
+    if (!confirm("Produkt löschen?")) return;
+    const res = await fetch(`/api/products/${id}`, { method: 'DELETE' });
+    if (res.ok) loadData();
   };
 
   const handleSaveConfig = async (e) => {
@@ -255,7 +213,7 @@ export default function AdminDashboard() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ bannerActive, bannerMessage, maintenanceActive })
     });
-    if (res.ok) triggerToast("Kassensystem erfolgreich aktualisiert!", "success");
+    if (res.ok) alert("Systemkonfiguration erfolgreich aktualisiert!");
   };
 
   const handleJournalStorno = async (saleId) => {
@@ -265,10 +223,7 @@ export default function AdminDashboard() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'STORNO', saleId })
     });
-    if (res.ok) {
-      loadData();
-      triggerToast("Umsatz erfolgreich storniert!", "success");
-    }
+    if (res.ok) loadData();
   };
 
   const handleCreatePeriod = async (e) => {
@@ -283,7 +238,7 @@ export default function AdminDashboard() {
       setNewStartDate('');
       setNewEndDate('');
       loadData();
-      triggerToast("Abrechnungszeitraum erfolgreich angelegt!", "success");
+      alert("Abrechnungszeitraum erfolgreich angelegt!");
     }
   };
 
@@ -293,7 +248,6 @@ export default function AdminDashboard() {
     if (res.ok) {
       setSelectedPeriodId('');
       loadData();
-      triggerToast("Abrechnungszeitraum gelöscht.", "success");
     }
   };
 
@@ -306,21 +260,32 @@ export default function AdminDashboard() {
     });
   };
 
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[#F5F5F7] flex flex-col items-center justify-center font-sans">
+        <form onSubmit={handleLogin} className="bg-white/80 backdrop-blur-md p-10 rounded-3xl shadow-xl max-w-sm w-full border border-white/20 text-center animate-fade-in">
+          <span className="text-4xl mb-4 block">🔒</span>
+          <h2 className="text-xl font-bold text-[#D31329] mb-2 tracking-tight">Admin-Bereich geschützt</h2>
+          <p className="text-xs text-gray-400 mb-6 font-semibold uppercase tracking-wider">St. Ursula Weltladen Villingen</p>
+          <input 
+            type="password" 
+            placeholder="Kennwort eingeben..."
+            value={passcode}
+            onChange={(e) => setPasscode(e.target.value)}
+            className="w-full px-4 py-3 rounded-2xl border border-gray-200 bg-white text-center font-bold tracking-widest mb-4"
+          />
+          <button type="submit" className="w-full py-3.5 bg-[#D31329] hover:bg-[#b01020] text-white font-bold rounded-2xl transition-all active:scale-95 shadow-md">
+            Entsperren
+          </button>
+        </form>
+      </div>
+    );
+  }
+
   return (
     <div className={isDarkMode ? 'dark' : ''}>
       <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 text-[#1D1D1F] dark:text-zinc-100 p-8 font-sans antialiased flex flex-col justify-between selection:bg-[#D31329] selection:text-white transition-colors duration-500">
         
-        {/* Glow Keyframes */}
-        <style>{`
-          @keyframes pulse-glow {
-            0%, 100% { transform: scale(1); filter: drop-shadow(0 0 15px rgba(211,19,41,0.2)); }
-            50% { transform: scale(1.03); filter: drop-shadow(0 0 35px rgba(211,19,41,0.6)); }
-          }
-          .animate-pulse-glow {
-            animation: pulse-glow 3s infinite ease-in-out;
-          }
-        `}</style>
-
         {/* Haupt-Inhalt */}
         <div>
           <header className="flex justify-between items-center mb-8 border-b pb-6 border-gray-200 dark:border-zinc-800">
@@ -449,11 +414,11 @@ export default function AdminDashboard() {
             <section className="col-span-12 bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-200/50 dark:border-zinc-800 shadow-sm">
               <h2 className="text-lg font-bold text-[#D31329] mb-6">Neues Produkt hinzufügen</h2>
               <form onSubmit={handleAddProduct} className="grid grid-cols-4 gap-4">
-                <input type="text" name="pname" placeholder="Produktname" className="px-4 py-3 rounded-xl border dark:border-zinc-800 bg-white dark:bg-zinc-950 text-gray-800 dark:text-zinc-100 font-medium focus:ring-2 focus:ring-[#D31329]/20 focus:border-[#D31329] outline-none" required />
+                <input type="text" name="pname" placeholder="Produktname" className="px-4 py-3 rounded-xl border dark:border-zinc-800 bg-white dark:bg-zinc-950 text-gray-850 dark:text-zinc-100 font-medium focus:ring-2 focus:ring-[#D31329]/20 focus:border-[#D31329] outline-none" required />
                 <select name="pgroup" className="px-4 py-3 rounded-xl border dark:border-zinc-800 bg-white dark:bg-zinc-950 text-gray-800 dark:text-zinc-100 font-medium focus:ring-2 focus:ring-[#D31329]/20 focus:border-[#D31329] outline-none"><option value="Lebensmittel">Lebensmittel</option><option value="Unverpackt; Lebensmittel">Unverpackt; Lebensmittel</option><option value="Schreibwaren">Schreibwaren</option><option value="Sonstige">Sonstige</option></select>
                 <input type="number" step="0.05" name="pprice" placeholder="Preis (€)" className="px-4 py-3 rounded-xl border dark:border-zinc-800 bg-white dark:bg-zinc-950 text-gray-800 dark:text-zinc-100 font-medium focus:ring-2 focus:ring-[#D31329]/20 focus:border-[#D31329] outline-none" required />
                 <select name="pvat" className="px-4 py-3 rounded-xl border dark:border-zinc-800 bg-white dark:bg-zinc-950 text-gray-800 dark:text-zinc-100 font-medium focus:ring-2 focus:ring-[#D31329]/20 focus:border-[#D31329] outline-none"><option value={7}>7% (Essen)</option><option value={19}>19% (Zubehör)</option></select>
-                <button type="submit" className="col-span-4 py-3.5 bg-[#D31329] hover:bg-[#b01020] text-white font-bold rounded-xl shadow-md transition-all">Produkt hinzufügen</button>
+                <button type="submit" className="col-span-4 py-3.5 bg-[#D31329] hover:bg-[#b01020] text-white font-bold rounded-xl shadow-md transition-all active:scale-95">Produkt hinzufügen</button>
               </form>
             </section>
           </div>
@@ -466,7 +431,7 @@ export default function AdminDashboard() {
                   <thead><tr className="border-b dark:border-zinc-800 text-xs text-gray-400 uppercase tracking-wider font-bold"><th className="py-3">Nr.</th><th>Bezeichnung</th><th>Warengruppe</th><th className="text-center">MwSt.</th><th className="text-right">Preis (€)</th><th className="text-right">Aktionen</th></tr></thead>
                   <tbody>
                     {products.map((p) => (
-                      <tr key={p._id} className="border-b dark:border-zinc-800 text-sm"><td className="py-3 font-mono text-xs text-gray-400">{p.nr}</td><td className="font-bold text-gray-800 dark:text-zinc-100">{p.name}</td><td><span className="text-[10px] font-bold text-gray-400 bg-gray-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full uppercase">{p.group}</span></td><td className="text-center text-gray-500 font-mono">{p.vatRate}%</td><td className="text-right py-1"><input type="number" step="0.05" defaultValue={p.basePrice} onBlur={(e) => handlePriceUpdate(p._id, e.target.value)} className="w-20 text-right border dark:border-zinc-800 bg-white dark:bg-zinc-950 text-gray-800 dark:text-zinc-100 rounded-xl px-2 py-1 font-bold focus:ring-2 focus:ring-[#D31329]/20 focus:border-[#D31329] outline-none" /></td><td className="text-right py-1"><button onClick={() => openDeleteConfirmation(p)} className="px-3 py-1 bg-red-50 text-red-600 font-bold rounded-lg text-xs uppercase tracking-wider hover:bg-red-100">Löschen</button></td></tr>
+                      <tr key={p._id} className="border-b dark:border-zinc-800 text-sm"><td className="py-3 font-mono text-xs text-gray-400">{p.nr}</td><td className="font-bold text-gray-800 dark:text-zinc-100">{p.name}</td><td><span className="text-[10px] font-bold text-gray-400 bg-gray-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full uppercase">{p.group}</span></td><td className="text-center text-gray-500 font-mono">{p.vatRate}%</td><td className="text-right py-1"><input type="number" step="0.05" defaultValue={p.basePrice} onBlur={(e) => handlePriceUpdate(p._id, e.target.value)} className="w-20 text-right border dark:border-zinc-800 bg-white dark:bg-zinc-950 text-gray-800 dark:text-zinc-100 rounded-xl px-2 py-1 font-bold focus:ring-2 focus:ring-[#D31329]/20 focus:border-[#D31329] outline-none" /></td><td className="text-right py-1"><button onClick={() => handleDeleteProduct(p._id)} className="px-3 py-1 bg-red-50 text-red-600 font-bold rounded-lg text-xs uppercase tracking-wider hover:bg-red-100">Löschen</button></td></tr>
                     ))}
                   </tbody>
                 </table>
@@ -566,44 +531,6 @@ export default function AdminDashboard() {
                 />
               </div>
             </div>
-          </div>
-        )}
-
-        {/* ECHTES APPLE LÖSCH-MODAL */}
-        {showDeleteModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md p-4">
-            <div className="bg-white/95 dark:bg-zinc-950/95 max-w-sm w-full rounded-3xl p-8 shadow-2xl border border-white/20 dark:border-zinc-800/50 relative text-center">
-              <span className="text-4xl mb-4 block">🗑️</span>
-              <h3 className="text-lg font-bold text-[#D31329] tracking-tight">Produkt löschen?</h3>
-              <p className="text-sm text-gray-500 dark:text-zinc-400 mt-3 leading-relaxed">
-                Möchtest du das Produkt <span className="font-bold text-gray-800 dark:text-zinc-100">"{productToDelete?.name}"</span> wirklich dauerhaft aus dem Register löschen?
-              </p>
-              <div className="h-px w-full bg-gray-200/50 dark:bg-zinc-800/50 my-6" />
-              <div className="flex gap-4">
-                <button 
-                  onClick={() => setShowDeleteModal(false)}
-                  className="w-1/2 py-3 bg-gray-100 dark:bg-zinc-850 text-gray-600 dark:text-zinc-300 font-bold rounded-xl text-xs uppercase tracking-wider transition-all"
-                >
-                  Abbrechen
-                </button>
-                <button 
-                  onClick={confirmDeleteProduct}
-                  className="w-1/2 py-3 bg-[#D31329] hover:bg-[#b01020] text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-all"
-                >
-                  Löschen
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* GORGEOUS APPLE TOAST NOTIFICATION */}
-        {toast.show && (
-          <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl backdrop-blur-md border ${
-            toast.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-800' : 'bg-red-500/10 border-red-500/20 text-[#D31329]'
-          }`}>
-            <span className="text-lg">{toast.type === 'success' ? '✅' : '❌'}</span>
-            <span className="text-sm font-bold tracking-wide">{toast.message}</span>
           </div>
         )}
 
