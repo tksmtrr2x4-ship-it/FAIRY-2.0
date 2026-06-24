@@ -41,6 +41,9 @@ const AdminDashboardComponent = () => {
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [productToDelete, setProductToDelete] = useState(null);
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [editingProductId, setEditingProductId] = useState(null);
+  const [editFields, setEditFields] = useState({});
 
   // Crash-sichere Uhrzeitformatierung
   const safeFormatTime = (dateStr) => {
@@ -249,6 +252,37 @@ const loadData = () => {
     } catch (err) {
       console.error(err);
       triggerToast("Verbindungsfehler zur Datenbank.", "error");
+    }
+  };
+
+  const handleStartEdit = (product) => {
+    setEditingProductId(product._id);
+    setEditFields({ name: product.name, group: product.group, basePrice: product.basePrice, vatRate: product.vatRate });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingProductId(null);
+    setEditFields({});
+  };
+
+  const handleSaveEdit = async (id) => {
+    const res = await fetch(`/api/products/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: editFields.name,
+        group: editFields.group,
+        price: parseFloat(editFields.basePrice),
+        vatRate: parseInt(editFields.vatRate)
+      })
+    });
+    if (res.ok) {
+      setEditingProductId(null);
+      setEditFields({});
+      loadData();
+      triggerToast("Produkt erfolgreich aktualisiert!", "success");
+    } else {
+      triggerToast("Fehler beim Speichern.", "error");
     }
   };
 
@@ -463,31 +497,18 @@ const loadData = () => {
           </div>
 
           <div className="grid grid-cols-12 gap-8 mb-8">
-            {/* Neues Produkt anlegen */}
             <section className="col-span-12 bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-200/50 dark:border-zinc-800 shadow-sm">
-              <h2 className="text-lg font-bold text-[#D31329] mb-6">Neues Produkt hinzufügen</h2>
-              <form onSubmit={handleAddProduct} className="grid grid-cols-4 gap-4">
-                <input type="text" name="pname" placeholder="Produktname" className="px-4 py-3 rounded-xl border dark:border-zinc-800 bg-white dark:bg-zinc-950 text-gray-800 dark:text-zinc-100 font-medium focus:ring-2 focus:ring-[#D31329]/20 focus:border-[#D31329] outline-none" required />
-                <select name="pgroup" className="px-4 py-3 rounded-xl border dark:border-zinc-800 bg-white dark:bg-zinc-950 text-gray-800 dark:text-zinc-100 font-medium focus:ring-2 focus:ring-[#D31329]/20 focus:border-[#D31329] outline-none"><option value="Lebensmittel">Lebensmittel</option><option value="Unverpackt; Lebensmittel">Unverpackt; Lebensmittel</option><option value="Schreibwaren">Schreibwaren</option><option value="Sonstige">Sonstige</option></select>
-                <input type="number" step="0.05" name="pprice" placeholder="Preis (€)" className="px-4 py-3 rounded-xl border dark:border-zinc-800 bg-white dark:bg-zinc-950 text-gray-800 dark:text-zinc-100 font-medium focus:ring-2 focus:ring-[#D31329]/20 focus:border-[#D31329] outline-none" required />
-                <select name="pvat" className="px-4 py-3 rounded-xl border dark:border-zinc-800 bg-white dark:bg-zinc-950 text-gray-800 dark:text-zinc-100 font-medium focus:ring-2 focus:ring-[#D31329]/20 focus:border-[#D31329] outline-none"><option value={7}>7% (Essen)</option><option value={19}>19% (Zubehör)</option></select>
-                <button type="submit" className="col-span-4 py-3.5 bg-[#D31329] hover:bg-[#b01020] text-white font-bold rounded-xl shadow-md transition-all">Produkt hinzufügen</button>
-              </form>
-            </section>
-          </div>
-
-          <div className="grid grid-cols-12 gap-8 mb-8">
-            <section className="col-span-12 bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-200/50 dark:border-zinc-800 shadow-sm animate-fade-in">
-              <h2 className="text-lg font-bold text-[#D31329] mb-4">Editierbares Produktregister</h2>
-              <div className="overflow-y-auto max-h-72">
-                <table className="w-full text-left border-collapse">
-                  <thead><tr className="border-b dark:border-zinc-800 text-xs text-gray-400 uppercase tracking-wider font-bold"><th className="py-3">Nr.</th><th>Bezeichnung</th><th>Warengruppe</th><th className="text-center">MwSt.</th><th className="text-right">Preis (€)</th><th className="text-right">Aktionen</th></tr></thead>
-                  <tbody>
-                    {products.map((p) => (
-                      <tr key={p._id} className="border-b dark:border-zinc-800 text-sm"><td className="py-3 font-mono text-xs text-gray-400">{p.nr}</td><td className="font-bold text-gray-800 dark:text-zinc-100">{p.name}</td><td><span className="text-[10px] font-bold text-gray-400 bg-gray-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full uppercase">{p.group}</span></td><td className="text-center text-gray-500 font-mono">{p.vatRate}%</td><td className="text-right py-1"><input type="number" step="0.05" defaultValue={p.basePrice} onBlur={(e) => handlePriceUpdate(p._id, e.target.value)} className="w-20 text-right border dark:border-zinc-800 bg-white dark:bg-zinc-950 text-gray-800 dark:text-zinc-100 rounded-xl px-2 py-1 font-bold focus:ring-2 focus:ring-[#D31329]/20 focus:border-[#D31329] outline-none" /></td><td className="text-right py-1"><button onClick={() => openDeleteConfirmation(p)} className="px-3 py-1 bg-red-50 text-red-600 font-bold rounded-lg text-xs uppercase tracking-wider hover:bg-red-100">Löschen</button></td></tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="flex justify-between items-center">
+                <div>
+                  <h2 className="text-lg font-bold text-[#D31329]">Produktverzeichnis</h2>
+                  <p className="text-sm text-gray-400 dark:text-zinc-500 mt-1">{products.length} Artikel im Register · Bearbeiten, Hinzufügen oder Löschen</p>
+                </div>
+                <button
+                  onClick={() => setShowProductModal(true)}
+                  className="px-6 py-3 bg-[#D31329] hover:bg-[#b01020] text-white font-bold rounded-2xl shadow-md transition-all text-sm uppercase tracking-wider active:scale-95"
+                >
+                  Verzeichnis öffnen →
+                </button>
               </div>
             </section>
           </div>
@@ -548,6 +569,147 @@ const loadData = () => {
             </section>
           </div>
         </div>
+
+        {/* PRODUKTVERZEICHNIS MODAL */}
+        {showProductModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md p-4">
+            <div className="bg-white dark:bg-zinc-950 w-full max-w-5xl max-h-[88vh] rounded-3xl shadow-2xl border border-gray-200 dark:border-zinc-800 flex flex-col">
+
+              {/* Modal Header */}
+              <div className="flex justify-between items-center px-8 py-5 border-b dark:border-zinc-800 flex-shrink-0">
+                <div>
+                  <h2 className="text-xl font-extrabold text-[#D31329] tracking-tight">Produktverzeichnis</h2>
+                  <p className="text-xs text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider mt-0.5">{products.length} Artikel im Register</p>
+                </div>
+                <button onClick={() => { setShowProductModal(false); setEditingProductId(null); setEditFields({}); }} className="h-9 w-9 rounded-full bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 flex items-center justify-center text-sm font-bold text-gray-600 dark:text-zinc-300 transition-all active:scale-90">✕</button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="flex flex-1 overflow-hidden min-h-0">
+
+                {/* Produktliste */}
+                <div className="flex-1 overflow-y-auto px-8 py-6">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b dark:border-zinc-800 text-xs text-gray-400 dark:text-zinc-500 uppercase tracking-wider font-bold">
+                        <th className="pb-3 w-10">Nr.</th>
+                        <th className="pb-3">Bezeichnung</th>
+                        <th className="pb-3">Warengruppe</th>
+                        <th className="pb-3 text-center w-16">MwSt.</th>
+                        <th className="pb-3 text-right w-24">Preis</th>
+                        <th className="pb-3 text-right w-44">Aktionen</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {products.map((p) => (
+                        <tr key={p._id} className="border-b dark:border-zinc-800 group">
+                          <td className="py-2.5 font-mono text-xs text-gray-400">{p.nr}</td>
+
+                          {editingProductId === p._id ? (
+                            <>
+                              <td className="py-1.5 pr-2">
+                                <input
+                                  value={editFields.name}
+                                  onChange={e => setEditFields(f => ({ ...f, name: e.target.value }))}
+                                  className="w-full px-2.5 py-1.5 rounded-lg border dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm font-bold text-gray-800 dark:text-zinc-100 focus:ring-2 focus:ring-[#D31329]/20 focus:border-[#D31329] outline-none"
+                                />
+                              </td>
+                              <td className="py-1.5 pr-2">
+                                <select
+                                  value={editFields.group}
+                                  onChange={e => setEditFields(f => ({ ...f, group: e.target.value }))}
+                                  className="w-full px-2.5 py-1.5 rounded-lg border dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs font-bold text-gray-800 dark:text-zinc-100 outline-none focus:ring-2 focus:ring-[#D31329]/20 focus:border-[#D31329]"
+                                >
+                                  <option value="Lebensmittel">Lebensmittel</option>
+                                  <option value="Unverpackt; Lebensmittel">Unverpackt; Lebensmittel</option>
+                                  <option value="Schreibwaren">Schreibwaren</option>
+                                  <option value="Sonstige">Sonstige</option>
+                                </select>
+                              </td>
+                              <td className="py-1.5 pr-2 text-center">
+                                <select
+                                  value={editFields.vatRate}
+                                  onChange={e => setEditFields(f => ({ ...f, vatRate: e.target.value }))}
+                                  className="px-2 py-1.5 rounded-lg border dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs font-mono text-gray-800 dark:text-zinc-100 outline-none focus:ring-2 focus:ring-[#D31329]/20"
+                                >
+                                  <option value={7}>7%</option>
+                                  <option value={19}>19%</option>
+                                </select>
+                              </td>
+                              <td className="py-1.5 pr-2 text-right">
+                                <input
+                                  type="number"
+                                  step="0.05"
+                                  value={editFields.basePrice}
+                                  onChange={e => setEditFields(f => ({ ...f, basePrice: e.target.value }))}
+                                  className="w-24 text-right px-2.5 py-1.5 rounded-lg border dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm font-bold text-[#D31329] outline-none focus:ring-2 focus:ring-[#D31329]/20 focus:border-[#D31329]"
+                                />
+                              </td>
+                              <td className="py-1.5 text-right">
+                                <div className="flex gap-1.5 justify-end">
+                                  <button onClick={() => handleSaveEdit(p._id)} className="px-3 py-1.5 bg-[#D31329] hover:bg-[#b01020] text-white font-bold rounded-lg text-xs transition-all active:scale-95">Speichern</button>
+                                  <button onClick={handleCancelEdit} className="px-3 py-1.5 bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 text-gray-600 dark:text-zinc-300 font-bold rounded-lg text-xs transition-all">Abbruch</button>
+                                </div>
+                              </td>
+                            </>
+                          ) : (
+                            <>
+                              <td className="py-2.5 font-bold text-sm text-gray-800 dark:text-zinc-100">{p.name}</td>
+                              <td className="py-2.5"><span className="text-[10px] font-bold text-gray-400 bg-gray-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full uppercase">{p.group}</span></td>
+                              <td className="py-2.5 text-center font-mono text-xs text-gray-500">{p.vatRate}%</td>
+                              <td className="py-2.5 text-right font-bold text-sm text-[#D31329]">{p.basePrice.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</td>
+                              <td className="py-2.5 text-right">
+                                <div className="flex gap-1.5 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button onClick={() => handleStartEdit(p)} className="px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 text-blue-600 font-bold rounded-lg text-xs uppercase transition-all">Bearbeiten</button>
+                                  <button onClick={() => openDeleteConfirmation(p)} className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-lg text-xs uppercase transition-all">Löschen</button>
+                                </div>
+                              </td>
+                            </>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Neues Produkt */}
+                <div className="w-72 flex-shrink-0 border-l dark:border-zinc-800 px-6 py-6 flex flex-col overflow-y-auto">
+                  <h3 className="text-base font-extrabold text-[#D31329] mb-5">Neues Produkt</h3>
+                  <form onSubmit={handleAddProduct} className="flex flex-col gap-4 flex-1">
+                    <div>
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">Bezeichnung</label>
+                      <input type="text" name="pname" placeholder="z.B. Bio-Kaffee" className="w-full px-3 py-2.5 rounded-xl border dark:border-zinc-800 bg-white dark:bg-zinc-900 text-gray-800 dark:text-zinc-100 font-medium focus:ring-2 focus:ring-[#D31329]/20 focus:border-[#D31329] outline-none text-sm" required />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">Warengruppe</label>
+                      <select name="pgroup" className="w-full px-3 py-2.5 rounded-xl border dark:border-zinc-800 bg-white dark:bg-zinc-900 text-gray-800 dark:text-zinc-100 font-medium focus:ring-2 focus:ring-[#D31329]/20 focus:border-[#D31329] outline-none text-sm">
+                        <option value="Lebensmittel">Lebensmittel</option>
+                        <option value="Unverpackt; Lebensmittel">Unverpackt; Lebensmittel</option>
+                        <option value="Schreibwaren">Schreibwaren</option>
+                        <option value="Sonstige">Sonstige</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">Preis (€)</label>
+                      <input type="number" step="0.05" name="pprice" placeholder="0,00" className="w-full px-3 py-2.5 rounded-xl border dark:border-zinc-800 bg-white dark:bg-zinc-900 text-gray-800 dark:text-zinc-100 font-medium focus:ring-2 focus:ring-[#D31329]/20 focus:border-[#D31329] outline-none text-sm" required />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">Mehrwertsteuer</label>
+                      <select name="pvat" className="w-full px-3 py-2.5 rounded-xl border dark:border-zinc-800 bg-white dark:bg-zinc-900 text-gray-800 dark:text-zinc-100 font-medium focus:ring-2 focus:ring-[#D31329]/20 focus:border-[#D31329] outline-none text-sm">
+                        <option value={7}>7% (Lebensmittel)</option>
+                        <option value={19}>19% (Zubehör)</option>
+                      </select>
+                    </div>
+                    <button type="submit" className="mt-auto w-full py-3 bg-[#D31329] hover:bg-[#b01020] text-white font-bold rounded-xl shadow-md transition-all text-sm active:scale-95">
+                      + Produkt hinzufügen
+                    </button>
+                  </form>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* COOLE KINO-SPALT-ÖFFNUNGS-ANIMATION (Wird beim Laden der Admin-Zentrale eingeblendet) */}
         {isTransitioning && (
