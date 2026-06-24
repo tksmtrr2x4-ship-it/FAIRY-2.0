@@ -779,7 +779,7 @@ const loadData = () => {
 
         {/* GORGEOUS APPLE TOAST NOTIFICATION */}
         {toast.show && (
-          <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-[200] flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl backdrop-blur-md border ${
+          <div style={{ zIndex: 9999 }} className={`fixed top-6 left-1/2 transform -translate-x-1/2 flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl backdrop-blur-md border ${
             toast.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-800' : 'bg-red-500/10 border-red-500/20 text-[#D31329]'
           }`}>
             <span className="text-lg">{toast.type === 'success' ? '✅' : '❌'}</span>
