@@ -10,7 +10,6 @@ export async function GET(req) {
     await dbConnect();
     const Sale = mongoose.models.Sale;
     const url = new URL(req.url);
-    
     const startDate = url.searchParams.get('startDate');
     const endDate = url.searchParams.get('endDate');
     const dateParam = url.searchParams.get('date');
