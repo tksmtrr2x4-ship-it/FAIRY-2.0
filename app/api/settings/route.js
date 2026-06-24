@@ -1,14 +1,12 @@
+// app/api/settings/route.js
 import dbConnect from '@/lib/dbConnect';
-import mongoose from 'mongoose';
 import { NextResponse } from 'next/server';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+const Settings = require('@/models/Settings');
 
 export async function GET() {
   try {
     await dbConnect();
-    const Settings = mongoose.models.Settings;
     let config = await Settings.findOne({ key: 'siteConfig' });
     if (!config) {
       config = new Settings({ 
@@ -26,7 +24,6 @@ export async function GET() {
 export async function POST(req) {
   try {
     await dbConnect();
-    const Settings = mongoose.models.Settings;
     const body = await req.json();
     const { bannerActive, bannerMessage, maintenanceActive } = body;
 
