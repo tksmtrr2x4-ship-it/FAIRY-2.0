@@ -1,15 +1,17 @@
-// app/api/products/route.js - [Bereinigte Lese-API]
 import dbConnect from '@/lib/dbConnect';
+import rawProduct from '@/models/Product';
 import mongoose from 'mongoose';
 import { NextResponse } from 'next/server';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+const Product = rawProduct.default || rawProduct;
 
 export async function GET() {
   try {
     await dbConnect();
-    const Product = mongoose.models.Product;
-    
-    // Holt alle in der Datenbank existierenden Produkte
-    const products = await Product.find().sort({ nr: 1 });
+    const products = await Product.find({ active: { $ne: false } }).sort({ nr: 1 });
     return NextResponse.json({ products });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -19,7 +21,6 @@ export async function GET() {
 export async function POST(req) {
   try {
     await dbConnect();
-    const Product = mongoose.models.Product;
     const body = await req.json();
     const { name, group, basePrice, vatRate } = body;
 

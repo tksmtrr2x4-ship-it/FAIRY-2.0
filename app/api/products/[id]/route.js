@@ -1,14 +1,15 @@
 import dbConnect from '@/lib/dbConnect';
-import mongoose from 'mongoose';
+import rawProduct from '@/models/Product';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+const Product = rawProduct.default || rawProduct;
+
 export async function PUT(req, { params }) {
   try {
     await dbConnect();
-    const Product = mongoose.models.Product;
     const { id } = params;
     const { price, name, group, vatRate } = await req.json();
 
@@ -28,10 +29,8 @@ export async function PUT(req, { params }) {
 export async function DELETE(req, { params }) {
   try {
     await dbConnect();
-    const Product = mongoose.models.Product;
     const { id } = params;
-
-    await Product.findByIdAndDelete(id); // Echtes Löschen
+    await Product.findByIdAndDelete(id);
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

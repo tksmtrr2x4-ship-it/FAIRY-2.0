@@ -1,14 +1,15 @@
 import dbConnect from '@/lib/dbConnect';
-import mongoose from 'mongoose';
+import rawSale from '@/models/Sale';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+const Sale = rawSale.default || rawSale;
+
 export async function GET() {
   try {
     await dbConnect();
-    const Sale = mongoose.models.Sale;
     const sales = await Sale.find().sort({ createdAt: -1 });
     return NextResponse.json({ success: true, sales });
   } catch (error) {
@@ -19,7 +20,6 @@ export async function GET() {
 export async function POST(req) {
   try {
     await dbConnect();
-    const Sale = mongoose.models.Sale;
     const body = await req.json();
     const { action, saleId, items, statusType, localDate } = body;
 
