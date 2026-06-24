@@ -9,7 +9,7 @@ export async function PUT(req, { params }) {
   try {
     await dbConnect();
     const Product = mongoose.models.Product;
-    const { id } = params;
+    const { id } = await params;
     const { price, name, group, vatRate } = await req.json();
 
     const updateFields = {};
@@ -29,7 +29,7 @@ export async function DELETE(req, { params }) {
   try {
     await dbConnect();
     const Product = mongoose.models.Product;
-    const { id } = params;
+    const { id } = await params;
 
     await Product.findByIdAndDelete(id); // Echtes Löschen
     return NextResponse.json({ success: true });

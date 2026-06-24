@@ -9,7 +9,7 @@ export async function DELETE(req, { params }) {
   try {
     await dbConnect();
     const Period = mongoose.models.Period;
-    const { id } = params;
+    const { id } = await params;
     await Period.findByIdAndDelete(id);
     return NextResponse.json({ success: true });
   } catch (error) {
