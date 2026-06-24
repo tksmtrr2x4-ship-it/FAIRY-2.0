@@ -44,6 +44,7 @@ const AdminDashboardComponent = () => {
   const [showProductModal, setShowProductModal] = useState(false);
   const [editingProductId, setEditingProductId] = useState(null);
   const [editFields, setEditFields] = useState({});
+  const [lastAddedProduct, setLastAddedProduct] = useState('');
 
   // Crash-sichere Uhrzeitformatierung
   const safeFormatTime = (dateStr) => {
@@ -215,17 +216,21 @@ const loadData = () => {
     const res = await fetch('/api/products', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        name, 
-        group, 
-        basePrice: parseFloat(basePrice), 
-        vatRate: parseInt(vatRate) 
+      body: JSON.stringify({
+        name,
+        group,
+        basePrice: parseFloat(basePrice),
+        vatRate: parseInt(vatRate)
       })
     });
-    if (res.ok) { 
-      e.currentTarget.reset(); 
-      loadData(); 
-      triggerToast("Produkt erfolgreich angelegt!", "success");
+    if (res.ok) {
+      const data = await res.json();
+      e.currentTarget.reset();
+      if (data.product) {
+        setProducts(prev => [...prev, data.product].sort((a, b) => a.nr - b.nr));
+      }
+      setLastAddedProduct(name);
+      setTimeout(() => setLastAddedProduct(''), 3500);
     }
   };
 
@@ -700,6 +705,12 @@ const loadData = () => {
                         <option value={19}>19% (Zubehör)</option>
                       </select>
                     </div>
+                    {lastAddedProduct && (
+                      <div className="flex items-center gap-2 px-3 py-2.5 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl">
+                        <span className="text-base">✅</span>
+                        <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">„{lastAddedProduct}" hinzugefügt!</span>
+                      </div>
+                    )}
                     <button type="submit" className="mt-auto w-full py-3 bg-[#D31329] hover:bg-[#b01020] text-white font-bold rounded-xl shadow-md transition-all text-sm active:scale-95">
                       + Produkt hinzufügen
                     </button>
