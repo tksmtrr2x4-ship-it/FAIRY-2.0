@@ -1,6 +1,8 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
+import SiteFooter from './components/SiteFooter';
 
 export default function Home() {
   const [config, setConfig] = useState({ bannerActive: false, bannerMessage: '', maintenanceActive: false });
@@ -34,11 +36,13 @@ export default function Home() {
     <div className="min-h-screen bg-[#F5F5F7] flex flex-col items-center justify-center font-sans antialiased text-[#1D1D1F]">
       <div className="bg-white p-10 rounded-3xl shadow-xl max-w-md w-full text-center border border-gray-150 flex flex-col items-center">
         {/* Logo Integration */}
-        <img 
-          src="/logo.png" 
-          alt="St. Ursula Schulen Villingen" 
+        <Image
+          src="/logo.png"
+          alt="St. Ursula Schulen Villingen"
+          width={80}
+          height={80}
+          priority
           className="h-20 w-auto object-contain mb-6 rounded-lg"
-          onError={(e) => { e.target.style.display = 'none'; }}
         />
         <h1 className="text-3xl font-extrabold text-[#D31329] mb-2 tracking-tight">Weltladen St. Ursula</h1>
         <p className="text-gray-400 text-xs mb-8 font-bold uppercase tracking-wider">Kassensystem & Administration</p>
@@ -59,10 +63,7 @@ export default function Home() {
         </div>
       </div>
       
-      {/* Copyright Footer */}
-      <div className="absolute bottom-6 text-center text-[10px] text-gray-400 font-bold uppercase tracking-wider">
-        © 2026 Schülerfirma Weltladen St. Ursula Villingen. Alle Rechte vorbehalten für Jill Manuel Hils.
-      </div>
+      <SiteFooter className="absolute bottom-2 left-0 right-0" />
     </div>
   );
 }
