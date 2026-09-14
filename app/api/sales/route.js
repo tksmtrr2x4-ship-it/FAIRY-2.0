@@ -21,9 +21,19 @@ export async function POST(req) {
     await dbConnect();
     const Sale = mongoose.models.Sale;
     const body = await req.json();
-    const { action, saleId, items, statusType, localDate } = body;
+    const { action, saleId, clientId, items, statusType, localDate } = body;
 
     if (action === 'CHECKOUT') {
+      // Doppelbuchungssperre: Kommt ein Bon aus der Warteschlange ein zweites Mal an
+      // (z. B. weil die Antwort unterwegs verloren ging), geben wir den bereits
+      // gebuchten Beleg zurück, statt ihn erneut anzulegen.
+      if (clientId) {
+        const existing = await Sale.findOne({ clientId });
+        if (existing) {
+          return NextResponse.json({ success: true, sale: existing, duplicate: true });
+        }
+      }
+
       const saleDate = localDate || new Date().toISOString().split('T')[0];
       
       let totalBrutto = 0;
@@ -58,7 +68,8 @@ export async function POST(req) {
         totalVat: Math.round(totalVat * 100) / 100,
         saleDate: saleDate,
         status: 'active',
-        storno: false
+        storno: false,
+        clientId: clientId || null
       });
 
       await newSale.save();
@@ -66,11 +77,19 @@ export async function POST(req) {
     }
 
     if (action === 'STORNO') {
-      const updatedSale = await Sale.findByIdAndUpdate(
-        saleId, 
-        { storno: true }, 
-        { new: true }
-      );
+      let updatedSale = null;
+
+      if (saleId) {
+        updatedSale = await Sale.findByIdAndUpdate(saleId, { storno: true }, { new: true });
+      }
+      // Fällt die Server-ID aus (Bon kam aus der Warteschlange), greift die Bon-Kennung.
+      if (!updatedSale && clientId) {
+        updatedSale = await Sale.findOneAndUpdate({ clientId }, { storno: true }, { new: true });
+      }
+      if (!updatedSale) {
+        return NextResponse.json({ error: 'Beleg nicht gefunden' }, { status: 404 });
+      }
+
       return NextResponse.json({ success: true, sale: updatedSale });
     }
 
