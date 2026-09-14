@@ -2,7 +2,9 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import dynamic from 'next/dynamic';
+import SiteFooter from '../components/SiteFooter';
 
 const ResponsiveContainer = dynamic(() => import('recharts').then((mod) => mod.ResponsiveContainer), { ssr: false });
 const BarChart = dynamic(() => import('recharts').then((mod) => mod.BarChart), { ssr: false });
@@ -12,12 +14,18 @@ const YAxis = dynamic(() => import('recharts').then((mod) => mod.YAxis), { ssr: 
 const Tooltip = dynamic(() => import('recharts').then((mod) => mod.Tooltip), { ssr: false });
 
 const AdminDashboardComponent = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [passcode, setPasscode] = useState('');
+  // Wer diese Seite sieht, ist von der Middleware bereits geprüft worden.
+  // Das frühere Kennwort im Browser-Bundle ist ersatzlos entfallen.
+  const [isAuthenticated] = useState(true);
+  const [protection, setProtection] = useState(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
   
-  const [stats, setStats] = useState({ totalRevenue: 0, salesCount: 0, totalNetto: 0 });
+  const [stats, setStats] = useState({ totalRevenue: 0, salesCount: 0, totalNetto: 0, totalVat: 0 });
   const [bestSellers, setBestSellers] = useState([]);
+  const [slowSellers, setSlowSellers] = useState([]);
+  const [lowStock, setLowStock] = useState([]);
+  const [dailyRevenue, setDailyRevenue] = useState([]);
+  const [vatBreakdown, setVatBreakdown] = useState([]);
   const [products, setProducts] = useState([]);
   const [salesJournal, setSalesJournal] = useState([]);
   const [periods, setPeriods] = useState([]);
@@ -46,6 +54,16 @@ const AdminDashboardComponent = () => {
   const [editFields, setEditFields] = useState({});
   const [lastAddedProduct, setLastAddedProduct] = useState('');
 
+  const euro = (value) =>
+    (Number.isFinite(value) ? value : 0).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
+
+  // 'pause1' und 'pause2' stammen aus der Zeit der getrennten Pausen. Sie werden
+  // in der Datenbank NICHT verändert, hier aber gemeinsam mit dem neuen 'pause'
+  // als "Pause" angezeigt. Der Rohwert bleibt daneben sichtbar.
+  const STATUS_LABEL = { active: 'Offen', pause: 'Pause', pause1: 'Pause', pause2: 'Pause', closed: 'Kassenschluss' };
+  const statusLabel = (status) => STATUS_LABEL[status] || status;
+  const isHistoricPause = (status) => status === 'pause1' || status === 'pause2';
+
   // Crash-sichere Uhrzeitformatierung
   const safeFormatTime = (dateStr) => {
     if (!dateStr) return '';
@@ -69,8 +87,6 @@ const AdminDashboardComponent = () => {
       document.documentElement.classList.add('dark');
     }
 
-    const auth = localStorage.getItem('admin_auth');
-    if (auth === 'true') setIsAuthenticated(true);
   }, []);
 
   const toggleTheme = () => {
@@ -90,19 +106,17 @@ const AdminDashboardComponent = () => {
     setTimeout(() => setToast(prev => ({ ...prev, show: false })), 3500);
   };
 
-  const handleLogin = (e) => {
-    e.preventDefault();
-    if (passcode === 'StUrsulaWeltladen2026') {
-      localStorage.setItem('admin_auth', 'true');
-      setIsAuthenticated(true);
-    } else {
-      alert("Falsches Admin-Kennwort!");
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: 'admin' })
+      });
+    } catch (err) {
+      console.error(err);
     }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('admin_auth');
-    setIsAuthenticated(false);
+    window.location.href = '/';
   };
 
   useEffect(() => {
@@ -161,6 +175,11 @@ const loadData = () => {
       .then(data => { if (data.success && data.sales) setSalesJournal(data.sales); })
       .catch(err => console.error(err));
 
+    fetch('/api/auth/status', { cache: 'no-store' })
+      .then(res => res.json())
+      .then(data => setProtection(data))
+      .catch(err => console.error(err));
+
     fetch('/api/settings', { cache: 'no-store' })
       .then(res => res.json())
       .then(data => {
@@ -188,7 +207,11 @@ const loadData = () => {
       .then(res => res.json())
       .then(data => {
         if (data.summary) setStats(data.summary);
-        if (data.bestSellers) setBestSellers(data.bestSellers);
+        setBestSellers(data.bestSellers || []);
+        setSlowSellers(data.slowSellers || []);
+        setLowStock(data.lowStock || []);
+        setDailyRevenue(data.dailyRevenue || []);
+        setVatBreakdown(data.vatBreakdown || []);
       });
   }, [selectedPeriodId, periods]);
 
@@ -249,10 +272,10 @@ const loadData = () => {
       if (data.success) {
         setShowDeleteModal(false);
         loadData();
-        triggerToast(`Erfolgreich gelöscht: "${productToDelete.name}" wurde dauerhaft entfernt.`, "success");
+        triggerToast(`„${productToDelete.name}" wurde aus dem Sortiment genommen.`, "success");
         setProductToDelete(null);
       } else {
-        triggerToast("Fehler beim Löschen des Produkts.", "error");
+        triggerToast("Produkt konnte nicht entfernt werden.", "error");
       }
     } catch (err) {
       console.error(err);
@@ -262,7 +285,14 @@ const loadData = () => {
 
   const handleStartEdit = (product) => {
     setEditingProductId(product._id);
-    setEditFields({ name: product.name, group: product.group, basePrice: product.basePrice, vatRate: product.vatRate });
+    setEditFields({
+      name: product.name,
+      group: product.group,
+      basePrice: product.basePrice,
+      vatRate: product.vatRate,
+      stock: product.stock ?? '',
+      minStock: product.minStock ?? ''
+    });
   };
 
   const handleCancelEdit = () => {
@@ -278,7 +308,9 @@ const loadData = () => {
         name: editFields.name,
         group: editFields.group,
         price: parseFloat(editFields.basePrice),
-        vatRate: parseInt(editFields.vatRate)
+        vatRate: parseInt(editFields.vatRate),
+        stock: editFields.stock,
+        minStock: editFields.minStock
       })
     });
     if (res.ok) {
@@ -343,36 +375,15 @@ const loadData = () => {
     }
   };
 
+  const activePeriod = periods.find(p => p._id === selectedPeriodId) || null;
+
   const getFilteredSales = () => {
-    const activePeriod = periods.find(p => p._id === selectedPeriodId);
     if (!activePeriod) return [];
     return (salesJournal || []).filter(sale => {
       const date = sale.saleDate;
       return date >= activePeriod.startDate && date <= activePeriod.endDate;
     });
   };
-
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-[#F5F5F7] flex flex-col items-center justify-center font-sans">
-        <form onSubmit={handleLogin} className="bg-white/80 backdrop-blur-md p-10 rounded-3xl shadow-xl max-w-sm w-full border border-white/20 text-center animate-fade-in">
-          <span className="text-4xl mb-4 block">🔒</span>
-          <h2 className="text-xl font-bold text-[#D31329] mb-2 tracking-tight">Admin-Bereich geschützt</h2>
-          <p className="text-xs text-gray-400 mb-6 font-semibold uppercase tracking-wider">St. Ursula Weltladen Villingen</p>
-          <input 
-            type="password" 
-            placeholder="Kennwort eingeben..."
-            value={passcode}
-            onChange={(e) => setPasscode(e.target.value)}
-            className="w-full px-4 py-3 rounded-2xl border border-gray-200 bg-white text-center font-bold tracking-widest mb-4 text-gray-800"
-          />
-          <button type="submit" className="w-full py-3.5 bg-[#D31329] hover:bg-[#b01020] text-white font-bold rounded-2xl transition-all active:scale-95 shadow-md">
-            Entsperren
-          </button>
-        </form>
-      </div>
-    );
-  }
 
   return (
     <div className={isDarkMode ? 'dark' : ''}>
@@ -384,7 +395,7 @@ const loadData = () => {
             <div className="flex items-center gap-4">
               <Link href="/" className="h-8 w-8 rounded-full bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 hover:bg-gray-100 dark:hover:bg-zinc-800 flex items-center justify-center text-sm font-bold text-gray-600 dark:text-zinc-300 transition-all active:scale-90">←</Link>
               <div className="flex items-center gap-3">
-                <img src="/logo.png" alt="St. Ursula Villingen" className="h-10 w-auto object-contain rounded dark:brightness-110" onError={(e) => { e.target.style.display = 'none'; }} />
+                <Image src="/logo.png" alt="St. Ursula Villingen" width={40} height={40} priority className="h-10 w-auto object-contain rounded dark:brightness-110" />
                 <div>
                   <h1 className="text-3xl font-extrabold tracking-tight text-[#D31329]">Systemsteuerung</h1>
                   <p className="text-sm text-gray-400 dark:text-zinc-500 font-semibold tracking-wider uppercase mt-1">St. Ursula Weltladen • Villingen</p>
@@ -409,6 +420,36 @@ const loadData = () => {
             </div>
           </header>
 
+          {protection && !protection.configured && (
+            <div className="mb-8 bg-[#D31329]/5 border-2 border-[#D31329]/30 rounded-3xl px-6 py-5 flex items-start gap-4">
+              <span className="text-2xl leading-none mt-0.5">🔓</span>
+              <div>
+                <h3 className="text-base font-extrabold text-[#D31329] tracking-tight">Zugriffsschutz ist nicht aktiv</h3>
+                <p className="text-sm text-gray-600 dark:text-zinc-400 mt-1.5 leading-relaxed max-w-3xl">
+                  Systemsteuerung und API sind derzeit für jeden erreichbar, der die Adresse kennt.
+                  Trage in Vercel unter <span className="font-bold">Project Settings → Environment Variables</span> die
+                  Werte <code className="font-mono text-xs bg-white dark:bg-zinc-900 px-1.5 py-0.5 rounded border border-gray-200 dark:border-zinc-800">AUTH_SECRET</code>,
+                  {' '}<code className="font-mono text-xs bg-white dark:bg-zinc-900 px-1.5 py-0.5 rounded border border-gray-200 dark:border-zinc-800">ADMIN_PIN</code> und
+                  {' '}<code className="font-mono text-xs bg-white dark:bg-zinc-900 px-1.5 py-0.5 rounded border border-gray-200 dark:border-zinc-800">POS_PIN</code> ein
+                  und stosse ein neues Deployment an.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {protection && protection.configured && (!protection.adminPinSet || !protection.posPinSet) && (
+            <div className="mb-8 bg-amber-500/10 border border-amber-500/30 rounded-3xl px-6 py-5 flex items-start gap-4">
+              <span className="text-2xl leading-none mt-0.5">⚠️</span>
+              <div>
+                <h3 className="text-base font-extrabold text-amber-700 tracking-tight">Eine PIN fehlt noch</h3>
+                <p className="text-sm text-gray-600 dark:text-zinc-400 mt-1.5 leading-relaxed">
+                  {!protection.adminPinSet && 'ADMIN_PIN ist nicht gesetzt – die Systemsteuerung lässt sich nicht entsperren. '}
+                  {!protection.posPinSet && 'POS_PIN ist nicht gesetzt – die Kasse lässt sich nicht entsperren.'}
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* KPI Dashboard */}
           <div className="grid grid-cols-3 gap-6 mb-8">
             <div className="bg-white p-6 dark:bg-zinc-900 rounded-3xl border border-gray-150 dark:border-zinc-800 shadow-sm"><p className="text-xs text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider">Umsatz (Brutto)</p><p className="text-3xl font-extrabold text-[#D31329] mt-2">{stats.totalRevenue.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</p></div>
@@ -418,7 +459,7 @@ const loadData = () => {
 
           <div className="grid grid-cols-12 gap-8 mb-8">
             <section className="col-span-6 bg-white p-6 rounded-3xl border border-gray-200/50 dark:border-zinc-800 shadow-sm h-[380px] flex flex-col justify-between">
-              <h2 className="text-lg font-bold text-[#D31329] mb-6">Best-Selling Products</h2>
+              <h2 className="text-lg font-bold text-[#D31329] mb-6">Meistverkaufte Artikel</h2>
               <div className="h-72 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={bestSellers}>
@@ -501,12 +542,118 @@ const loadData = () => {
             </section>
           </div>
 
+          {/* AUSWERTUNGEN */}
+          <div className="grid grid-cols-12 gap-8 mb-8">
+
+            <section className="col-span-7 bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-200/50 dark:border-zinc-800 shadow-sm flex flex-col">
+              <div className="flex justify-between items-start gap-4 mb-4">
+                <div>
+                  <h2 className="text-lg font-bold text-[#D31329]">Tagesabschlüsse</h2>
+                  <p className="text-xs text-gray-400 dark:text-zinc-500 mt-1 font-medium">
+                    Ein Eintrag je Verkaufstag im gewählten Zeitraum.
+                  </p>
+                </div>
+                <a
+                  href={`/api/admin/export${activePeriod ? `?startDate=${activePeriod.startDate}&endDate=${activePeriod.endDate}` : ''}`}
+                  className="px-5 py-2.5 bg-[#0D2B45] hover:bg-[#163f61] text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-all active:scale-95 whitespace-nowrap"
+                >
+                  CSV herunterladen
+                </a>
+              </div>
+
+              {vatBreakdown.length > 0 && (
+                <div className="flex flex-wrap gap-x-6 gap-y-1 mb-4 pb-4 border-b dark:border-zinc-800">
+                  {vatBreakdown.map(b => (
+                    <span key={b.rate} className="text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider">
+                      MwSt {b.rate} %: <span className="text-gray-700 dark:text-zinc-200 tabular-nums">{euro(b.vat)}</span>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <div className="overflow-y-auto max-h-72">
+                {dailyRevenue.length === 0 ? (
+                  <p className="text-sm text-gray-300 dark:text-zinc-600 font-bold text-center py-10">
+                    Keine Verkäufe in diesem Zeitraum
+                  </p>
+                ) : (
+                  <table className="w-full text-left border-collapse">
+                    <thead className="sticky top-0 bg-white dark:bg-zinc-900">
+                      <tr className="border-b dark:border-zinc-800 text-xs text-gray-400 uppercase tracking-wider font-bold">
+                        <th className="py-2">Datum</th>
+                        <th className="text-right">Belege</th>
+                        <th className="text-right">Netto</th>
+                        <th className="text-right">Brutto</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dailyRevenue.map(d => (
+                        <tr key={d.date} className="border-b dark:border-zinc-800 text-sm">
+                          <td className="py-2.5 font-mono text-xs">{safeFormatDate(d.date)}</td>
+                          <td className="text-right tabular-nums text-gray-500">{d.count}</td>
+                          <td className="text-right tabular-nums text-gray-500">{euro(d.netto)}</td>
+                          <td className="text-right font-bold text-[#D31329] tabular-nums">{euro(d.brutto)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </section>
+
+            <div className="col-span-5 flex flex-col gap-8">
+              <section className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-200/50 dark:border-zinc-800 shadow-sm">
+                <h2 className="text-lg font-bold text-[#D31329] mb-1">Knappe Bestände</h2>
+                <p className="text-xs text-gray-400 dark:text-zinc-500 mb-4 font-medium">
+                  Artikel auf oder unter ihrer Mindestmenge.
+                </p>
+                {lowStock.length === 0 ? (
+                  <p className="text-sm text-gray-300 dark:text-zinc-600 font-bold py-4">
+                    Nichts knapp – oder noch keine Bestände gepflegt.
+                  </p>
+                ) : (
+                  <div className="flex flex-col gap-2 max-h-40 overflow-y-auto">
+                    {lowStock.map(item => (
+                      <div key={item.name} className="flex justify-between items-center gap-3 bg-amber-500/10 border border-amber-500/25 rounded-xl px-3 py-2">
+                        <span className="text-sm font-bold text-gray-800 dark:text-zinc-100 truncate">{item.name}</span>
+                        <span className="text-xs font-bold text-amber-700 tabular-nums whitespace-nowrap">
+                          noch {item.stock} (min. {item.minStock})
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              <section className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-200/50 dark:border-zinc-800 shadow-sm">
+                <h2 className="text-lg font-bold text-[#D31329] mb-1">Ladenhüter</h2>
+                <p className="text-xs text-gray-400 dark:text-zinc-500 mb-4 font-medium">
+                  Am wenigsten verkauft im gewählten Zeitraum.
+                </p>
+                {slowSellers.length === 0 ? (
+                  <p className="text-sm text-gray-300 dark:text-zinc-600 font-bold py-4">Keine Daten</p>
+                ) : (
+                  <div className="flex flex-col">
+                    {slowSellers.map(item => (
+                      <div key={item.name} className="flex justify-between items-center gap-3 py-2 border-b dark:border-zinc-800 last:border-0">
+                        <span className="text-sm font-bold text-gray-700 dark:text-zinc-200 truncate">{item.name}</span>
+                        <span className={`text-xs font-bold tabular-nums whitespace-nowrap ${item.totalSold === 0 ? 'text-[#D31329]' : 'text-gray-400'}`}>
+                          {item.totalSold}× verkauft
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+            </div>
+          </div>
+
           <div className="grid grid-cols-12 gap-8 mb-8">
             <section className="col-span-12 bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-200/50 dark:border-zinc-800 shadow-sm">
               <div className="flex justify-between items-center">
                 <div>
                   <h2 className="text-lg font-bold text-[#D31329]">Produktverzeichnis</h2>
-                  <p className="text-sm text-gray-400 dark:text-zinc-500 mt-1">{products.length} Artikel im Register · Bearbeiten, Hinzufügen oder Löschen</p>
+                  <p className="text-sm text-gray-400 dark:text-zinc-500 mt-1">{products.length} Artikel im Register · Bearbeiten, Hinzufügen, Bestände pflegen</p>
                 </div>
                 <button
                   onClick={() => setShowProductModal(true)}
@@ -552,7 +699,14 @@ const loadData = () => {
                           {sale.storno ? (
                             <span className="text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full uppercase">Storniert</span>
                           ) : (
-                            <span className="text-[10px] font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full uppercase">{sale.status}</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full uppercase">{statusLabel(sale.status)}</span>
+                              {isHistoricPause(sale.status) && (
+                                <span className="text-[9px] font-mono text-gray-400" title="Ursprünglicher Wert aus der Zeit der getrennten Pausen">
+                                  {sale.status}
+                                </span>
+                              )}
+                            </div>
                           )}
                         </td>
                         <td className="text-right font-bold text-[#D31329]">{sale.totalBrutto.toFixed(2)} €</td>
@@ -602,6 +756,7 @@ const loadData = () => {
                         <th className="pb-3">Warengruppe</th>
                         <th className="pb-3 text-center w-16">MwSt.</th>
                         <th className="pb-3 text-right w-24">Preis</th>
+                        <th className="pb-3 text-center w-28">Bestand</th>
                         <th className="pb-3 text-right w-44">Aktionen</th>
                       </tr>
                     </thead>
@@ -650,6 +805,28 @@ const loadData = () => {
                                   className="w-24 text-right px-2.5 py-1.5 rounded-lg border dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm font-bold text-[#D31329] outline-none focus:ring-2 focus:ring-[#D31329]/20 focus:border-[#D31329]"
                                 />
                               </td>
+                              <td className="py-1.5 px-2">
+                                <div className="flex gap-1 justify-center">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={editFields.stock}
+                                    onChange={e => setEditFields(f => ({ ...f, stock: e.target.value }))}
+                                    placeholder="Best."
+                                    title="Restbestand – leer lassen, wenn nicht gepflegt"
+                                    className="w-14 text-center px-1.5 py-1.5 rounded-lg border dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs font-bold text-gray-800 dark:text-zinc-100 outline-none focus:ring-2 focus:ring-[#D31329]/20"
+                                  />
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={editFields.minStock}
+                                    onChange={e => setEditFields(f => ({ ...f, minStock: e.target.value }))}
+                                    placeholder="Min."
+                                    title="Ab dieser Menge wird gewarnt"
+                                    className="w-14 text-center px-1.5 py-1.5 rounded-lg border dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs font-bold text-gray-500 dark:text-zinc-400 outline-none focus:ring-2 focus:ring-[#D31329]/20"
+                                  />
+                                </div>
+                              </td>
                               <td className="py-1.5 text-right">
                                 <div className="flex gap-1.5 justify-end">
                                   <button onClick={() => handleSaveEdit(p._id)} className="px-3 py-1.5 bg-[#D31329] hover:bg-[#b01020] text-white font-bold rounded-lg text-xs transition-all active:scale-95">Speichern</button>
@@ -663,6 +840,22 @@ const loadData = () => {
                               <td className="py-2.5"><span className="text-[10px] font-bold text-gray-400 bg-gray-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full uppercase">{p.group}</span></td>
                               <td className="py-2.5 text-center font-mono text-xs text-gray-500">{p.vatRate}%</td>
                               <td className="py-2.5 text-right font-bold text-sm text-[#D31329]">{p.basePrice.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</td>
+                              <td className="py-2.5 text-center">
+                                {typeof p.stock !== 'number' ? (
+                                  <span className="text-xs text-gray-300 dark:text-zinc-700 font-bold" title="Bestand nicht gepflegt">–</span>
+                                ) : (
+                                  <span
+                                    title={typeof p.minStock === 'number' ? `Mindestmenge ${p.minStock}` : 'Keine Mindestmenge hinterlegt'}
+                                    className={`text-xs font-bold tabular-nums px-2 py-0.5 rounded-full ${
+                                      typeof p.minStock === 'number' && p.stock <= p.minStock
+                                        ? 'text-amber-700 bg-amber-500/15'
+                                        : 'text-gray-500 dark:text-zinc-400'
+                                    }`}
+                                  >
+                                    {p.stock}{typeof p.minStock === 'number' ? ` / ${p.minStock}` : ''}
+                                  </span>
+                                )}
+                              </td>
                               <td className="py-2.5 text-right">
                                 <div className="flex gap-1.5 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
                                   <button onClick={() => handleStartEdit(p)} className="px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 text-blue-600 font-bold rounded-lg text-xs uppercase transition-all">Bearbeiten</button>
@@ -750,9 +943,12 @@ const loadData = () => {
               }`}
             >
               <div className="p-4 bg-white dark:bg-zinc-900 rounded-full shadow-[0_0_50px_rgba(211,19,41,0.25)] animate-pulse-glow">
-                <img 
-                  src="/logo.png" 
-                  alt="Weltladen Logo" 
+                <Image
+                  src="/logo.png"
+                  alt="Weltladen Logo"
+                  width={112}
+                  height={112}
+                  priority
                   className="h-28 w-28 object-contain rounded-full"
                 />
               </div>
@@ -764,10 +960,12 @@ const loadData = () => {
         {showDeleteModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md p-4">
             <div className="bg-white/95 dark:bg-zinc-950/95 max-w-sm w-full rounded-3xl p-8 shadow-2xl border border-white/20 dark:border-zinc-800/50 relative text-center">
-              <span className="text-4xl mb-4 block">🗑️</span>
-              <h3 className="text-lg font-bold text-[#D31329] tracking-tight">Produkt löschen?</h3>
+              <span className="text-4xl mb-4 block">📦</span>
+              <h3 className="text-lg font-bold text-[#D31329] tracking-tight">Produkt aus dem Sortiment nehmen?</h3>
               <p className="text-sm text-gray-500 dark:text-zinc-400 mt-3 leading-relaxed">
-                Möchtest du das Produkt <span className="font-bold text-gray-800 dark:text-zinc-100">"{productToDelete?.name}"</span> wirklich dauerhaft aus dem Register löschen?
+                <span className="font-bold text-gray-800 dark:text-zinc-100">&bdquo;{productToDelete?.name}&ldquo;</span> verschwindet
+                aus der Kasse und aus diesem Verzeichnis. Der Datensatz selbst bleibt erhalten,
+                damit die bisherigen Verkäufe nachvollziehbar bleiben.
               </p>
               <div className="h-px w-full bg-gray-200/50 dark:bg-zinc-800/50 my-6" />
               <div className="flex gap-4">
@@ -781,7 +979,7 @@ const loadData = () => {
                   onClick={confirmDeleteProduct}
                   className="w-1/2 py-3 bg-[#D31329] hover:bg-[#b01020] text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-all"
                 >
-                  Löschen
+                  Entfernen
                 </button>
               </div>
             </div>
@@ -798,10 +996,7 @@ const loadData = () => {
           </div>
         )}
 
-        {/* Copyright Footer */}
-        <footer className="mt-8 py-5 text-center text-[10px] text-gray-400 dark:text-zinc-650 font-bold uppercase tracking-wider bg-white dark:bg-zinc-950 border-t border-gray-150 dark:border-zinc-800">
-          © 2026 Schülerfirma Weltladen St. Ursula Villingen. Alle Rechte vorbehalten für Jill Manuel Hils.
-        </footer>
+        <SiteFooter className="mt-8 bg-white dark:bg-zinc-950 border-t border-gray-150 dark:border-zinc-800" />
       </div>
     </div>
   );
