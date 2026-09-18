@@ -230,6 +230,32 @@ export default function PosInterface() {
     return () => clearInterval(timer);
   }, [pendingCount]);
 
+  // Service Worker anmelden und ihm alle Dateien melden, die diese Seite
+  // geladen hat - damit sich die Kasse beim nächsten Mal auch ohne Netz öffnet.
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'production' || !('serviceWorker' in navigator)) return;
+
+    const melden = async () => {
+      try {
+        await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+        const bereit = await navigator.serviceWorker.ready;
+        const dateien = performance
+          .getEntriesByType('resource')
+          .map((eintrag) => eintrag.name)
+          .filter((name) => {
+            const pfad = new URL(name, location.origin).pathname;
+            return pfad.startsWith('/_next/') || pfad.startsWith('/icons/') || pfad === '/manifest.webmanifest';
+          });
+        bereit.active?.postMessage({ type: 'KASSE_SPEICHERN', urls: ['/pos', ...dateien] });
+      } catch (err) {
+        console.warn('Service Worker konnte nicht eingerichtet werden.', err);
+      }
+    };
+
+    if (document.readyState === 'complete') melden();
+    else window.addEventListener('load', melden, { once: true });
+  }, []);
+
   // Artikelstand regelmäßig und beim Zurückwechseln in die App auffrischen
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
