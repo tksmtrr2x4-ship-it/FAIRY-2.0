@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import SiteFooter from '../components/SiteFooter';
+import { KLEINUNTERNEHMER, KLEINUNTERNEHMER_HINWEIS } from '@/lib/tax';
 
 const ResponsiveContainer = dynamic(() => import('recharts').then((mod) => mod.ResponsiveContainer), { ssr: false });
 const BarChart = dynamic(() => import('recharts').then((mod) => mod.BarChart), { ssr: false });
@@ -159,11 +160,19 @@ const loadData = () => {
         if (data.success && data.periods) {
           setPeriods(data.periods);
           if (!selectedPeriodId && data.periods.length > 0) {
-            const q2 = data.periods.find(p => p.name.includes("Q2"));
-            setSelectedPeriodId(q2 ? q2._id : data.periods[0]._id);
+            // Vorauswahl nach Datum: zuerst der Zeitraum, der heute enthält,
+            // sonst der jüngste bereits begonnene, sonst der letzte angelegte.
+            const today = new Date().toLocaleDateString('sv-SE');
+            const current = data.periods.find(p => p.startDate <= today && today <= p.endDate);
+            const latestStarted = data.periods
+              .filter(p => p.startDate <= today)
+              .sort((a, b) => b.startDate.localeCompare(a.startDate))[0];
+            const pick = current || latestStarted || data.periods[data.periods.length - 1];
+            setSelectedPeriodId(pick._id);
           }
         }
-      });
+      })
+      .catch(err => console.error(err));
 
     fetch('/api/products', { cache: 'no-store' })
       .then(res => res.json())
@@ -230,30 +239,45 @@ const loadData = () => {
 
   const handleAddProduct = async (e) => {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
+    // Das Formular muss VOR dem ersten await festgehalten werden: React setzt
+    // e.currentTarget danach auf null. Früher brach der Code genau hier ab -
+    // das Produkt war gespeichert, aber Liste und Bestätigung blieben aus.
+    const form = e.currentTarget;
+    const formData = new FormData(form);
     const name = formData.get('pname');
     const group = formData.get('pgroup');
     const basePrice = formData.get('pprice');
     const vatRate = formData.get('pvat');
 
-    const res = await fetch('/api/products', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name,
-        group,
-        basePrice: parseFloat(basePrice),
-        vatRate: parseInt(vatRate)
-      })
-    });
-    if (res.ok) {
-      const data = await res.json();
-      e.currentTarget.reset();
-      if (data.product) {
-        setProducts(prev => [...prev, data.product].sort((a, b) => a.nr - b.nr));
+    try {
+      const res = await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          group,
+          basePrice: parseFloat(basePrice),
+          vatRate: parseInt(vatRate)
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.product) {
+        const grund = res.status === 401
+          ? 'Die Anmeldung ist abgelaufen – bitte neu anmelden.'
+          : (data.error || `Serverfehler ${res.status}`);
+        triggerToast(`„${name}“ wurde nicht angelegt. ${grund}`, 'error');
+        return;
       }
+
+      form.reset();
+      setProducts(prev => [...prev, data.product].sort((a, b) => a.nr - b.nr));
       setLastAddedProduct(name);
       setTimeout(() => setLastAddedProduct(''), 3500);
+      triggerToast(`„${name}“ angelegt – erscheint ab sofort in der Kasse.`, 'success');
+    } catch (err) {
+      console.error(err);
+      triggerToast(`„${name}“ wurde nicht angelegt – keine Verbindung zum Server.`, 'error');
     }
   };
 
@@ -264,24 +288,48 @@ const loadData = () => {
   };
 
   // Löschung bestätigen & über die API ausführen (Sicheres Soft-Delete)
-  const confirmDeleteProduct = async () => {
+  const confirmDeleteProduct = async (endgueltig = false) => {
     if (!productToDelete) return;
+    const { _id, name } = productToDelete;
     try {
-      const res = await fetch(`/api/products/${productToDelete._id}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (data.success) {
-        setShowDeleteModal(false);
-        loadData();
-        triggerToast(`„${productToDelete.name}" wurde aus dem Sortiment genommen.`, "success");
-        setProductToDelete(null);
-      } else {
-        triggerToast("Produkt konnte nicht entfernt werden.", "error");
+      const res = await fetch(`/api/products/${_id}${endgueltig ? '?endgueltig=1' : ''}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.success) {
+        // 409 = schon verkauft: Dialog offen lassen, damit man direkt
+        // "Aus dem Sortiment nehmen" wählen kann.
+        const grund = res.status === 401
+          ? 'Die Anmeldung ist abgelaufen – bitte neu anmelden.'
+          : (data.error || `Serverfehler ${res.status}`);
+        triggerToast(`„${name}“: ${grund}`, 'error');
+        return;
       }
+
+      setShowDeleteModal(false);
+      setProductToDelete(null);
+      setProducts(prev => prev.filter(p => p._id !== _id));
+      loadData();
+      triggerToast(
+        endgueltig
+          ? `„${name}“ wurde endgültig gelöscht.`
+          : `„${name}“ wurde aus dem Sortiment genommen.`,
+        'success'
+      );
     } catch (err) {
       console.error(err);
-      triggerToast("Verbindungsfehler zur Datenbank.", "error");
+      triggerToast('Keine Verbindung zum Server.', 'error');
     }
   };
+
+  // Gleich lautende Produkte (Groß-/Kleinschreibung und Leerzeichen egal)
+  // werden markiert, damit versehentliche Dubletten auffallen.
+  const nameKey = (name) => String(name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  const nameCounts = products.reduce((acc, p) => {
+    const key = nameKey(p.name);
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+  const isDuplicate = (p) => nameCounts[nameKey(p.name)] > 1;
 
   const handleStartEdit = (product) => {
     setEditingProductId(product._id);
@@ -301,25 +349,38 @@ const loadData = () => {
   };
 
   const handleSaveEdit = async (id) => {
-    const res = await fetch(`/api/products/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: editFields.name,
-        group: editFields.group,
-        price: parseFloat(editFields.basePrice),
-        vatRate: parseInt(editFields.vatRate),
-        stock: editFields.stock,
-        minStock: editFields.minStock
-      })
-    });
-    if (res.ok) {
+    try {
+      const res = await fetch(`/api/products/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editFields.name,
+          group: editFields.group,
+          price: parseFloat(editFields.basePrice),
+          vatRate: parseInt(editFields.vatRate),
+          stock: editFields.stock,
+          minStock: editFields.minStock
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.product) {
+        const grund = res.status === 401
+          ? 'Die Anmeldung ist abgelaufen – bitte neu anmelden.'
+          : (data.error || `Serverfehler ${res.status}`);
+        triggerToast(`Nicht gespeichert. ${grund}`, 'error');
+        return;
+      }
+
+      // Sofort in der Liste übernehmen, ohne auf das komplette Neuladen zu warten.
+      setProducts(prev => prev.map(p => (p._id === id ? data.product : p)));
       setEditingProductId(null);
       setEditFields({});
       loadData();
-      triggerToast("Produkt erfolgreich aktualisiert!", "success");
-    } else {
-      triggerToast("Fehler beim Speichern.", "error");
+      triggerToast(`„${data.product.name}“ gespeichert – die Kasse übernimmt es innerhalb von zwei Minuten.`, 'success');
+    } catch (err) {
+      console.error(err);
+      triggerToast('Nicht gespeichert – keine Verbindung zum Server.', 'error');
     }
   };
 
@@ -376,6 +437,9 @@ const loadData = () => {
   };
 
   const activePeriod = periods.find(p => p._id === selectedPeriodId) || null;
+
+  const todayIso = new Date().toLocaleDateString('sv-SE');
+  const todayCovered = periods.some(p => p.startDate <= todayIso && todayIso <= p.endDate);
 
   const getFilteredSales = () => {
     if (!activePeriod) return [];
@@ -450,10 +514,28 @@ const loadData = () => {
             </div>
           )}
 
+          {periods.length > 0 && !todayCovered && (
+            <div className="mb-8 bg-amber-500/10 border border-amber-500/30 rounded-3xl px-6 py-5 flex items-start gap-4">
+              <span className="text-2xl leading-none mt-0.5">📅</span>
+              <div>
+                <h3 className="text-base font-extrabold text-amber-700 tracking-tight">Für heute ist kein Abrechnungszeitraum angelegt</h3>
+                <p className="text-sm text-gray-600 dark:text-zinc-400 mt-1.5 leading-relaxed max-w-3xl">
+                  Verkäufe von heute werden gespeichert, erscheinen aber in keinem Zeitraum und damit weder
+                  im Journal noch in den Auswertungen. Bitte unten unter „Abrechnungszeiträume verwalten“
+                  einen Zeitraum anlegen, der das heutige Datum einschließt.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* KPI Dashboard */}
           <div className="grid grid-cols-3 gap-6 mb-8">
-            <div className="bg-white p-6 dark:bg-zinc-900 rounded-3xl border border-gray-150 dark:border-zinc-800 shadow-sm"><p className="text-xs text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider">Umsatz (Brutto)</p><p className="text-3xl font-extrabold text-[#D31329] mt-2">{stats.totalRevenue.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</p></div>
-            <div className="bg-white p-6 dark:bg-zinc-900 rounded-3xl border border-gray-150 dark:border-zinc-800 shadow-sm"><p className="text-xs text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider">Umsatz (Netto)</p><p className="text-3xl font-extrabold text-[#8E8E93] mt-2">{stats.totalNetto?.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }) || '0,00 €'}</p></div>
+            <div className="bg-white p-6 dark:bg-zinc-900 rounded-3xl border border-gray-150 dark:border-zinc-800 shadow-sm"><p className="text-xs text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider">{KLEINUNTERNEHMER ? 'Umsatz' : 'Umsatz (Brutto)'}</p><p className="text-3xl font-extrabold text-[#D31329] mt-2">{stats.totalRevenue.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</p></div>
+            {KLEINUNTERNEHMER ? (
+              <div className="bg-white p-6 dark:bg-zinc-900 rounded-3xl border border-gray-150 dark:border-zinc-800 shadow-sm"><p className="text-xs text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider">Durchschnittlicher Bon</p><p className="text-3xl font-extrabold text-[#8E8E93] mt-2">{euro(stats.salesCount > 0 ? stats.totalRevenue / stats.salesCount : 0)}</p></div>
+            ) : (
+              <div className="bg-white p-6 dark:bg-zinc-900 rounded-3xl border border-gray-150 dark:border-zinc-800 shadow-sm"><p className="text-xs text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider">Umsatz (Netto)</p><p className="text-3xl font-extrabold text-[#8E8E93] mt-2">{stats.totalNetto?.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }) || '0,00 €'}</p></div>
+            )}
             <div className="bg-white p-6 dark:bg-zinc-900 rounded-3xl border border-gray-150 dark:border-zinc-800 shadow-sm"><p className="text-xs text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider">Belege gesamt</p><p className="text-3xl font-extrabold mt-2 text-gray-700 dark:text-zinc-200">{stats.salesCount} Belege</p></div>
           </div>
 
@@ -553,15 +635,28 @@ const loadData = () => {
                     Ein Eintrag je Verkaufstag im gewählten Zeitraum.
                   </p>
                 </div>
-                <a
-                  href={`/api/admin/export${activePeriod ? `?startDate=${activePeriod.startDate}&endDate=${activePeriod.endDate}` : ''}`}
-                  className="px-5 py-2.5 bg-[#0D2B45] hover:bg-[#163f61] text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-all active:scale-95 whitespace-nowrap"
-                >
-                  CSV herunterladen
-                </a>
+                <div className="flex flex-col gap-2 items-stretch">
+                  <a
+                    href={`/api/admin/export?art=tage${activePeriod ? `&startDate=${activePeriod.startDate}&endDate=${activePeriod.endDate}` : ''}`}
+                    className="px-5 py-2.5 bg-[#0D2B45] hover:bg-[#163f61] text-white text-center font-bold rounded-xl text-xs uppercase tracking-wider transition-all active:scale-95 whitespace-nowrap"
+                  >
+                    Tagesabschlüsse (CSV)
+                  </a>
+                  <a
+                    href={`/api/admin/export?art=belege${activePeriod ? `&startDate=${activePeriod.startDate}&endDate=${activePeriod.endDate}` : ''}`}
+                    title="Jeder Bon mit allen Positionen, Uhrzeit und Storno-Vermerk"
+                    className="px-5 py-2.5 bg-white dark:bg-zinc-900 border border-[#0D2B45]/30 text-[#0D2B45] dark:text-zinc-200 hover:bg-gray-50 text-center font-bold rounded-xl text-xs uppercase tracking-wider transition-all active:scale-95 whitespace-nowrap"
+                  >
+                    Einzelbelege (CSV)
+                  </a>
+                </div>
               </div>
 
-              {vatBreakdown.length > 0 && (
+              {KLEINUNTERNEHMER ? (
+                <p className="text-xs font-bold text-gray-400 dark:text-zinc-500 mb-4 pb-4 border-b dark:border-zinc-800">
+                  {KLEINUNTERNEHMER_HINWEIS}
+                </p>
+              ) : vatBreakdown.length > 0 && (
                 <div className="flex flex-wrap gap-x-6 gap-y-1 mb-4 pb-4 border-b dark:border-zinc-800">
                   {vatBreakdown.map(b => (
                     <span key={b.rate} className="text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider">
@@ -582,8 +677,8 @@ const loadData = () => {
                       <tr className="border-b dark:border-zinc-800 text-xs text-gray-400 uppercase tracking-wider font-bold">
                         <th className="py-2">Datum</th>
                         <th className="text-right">Belege</th>
-                        <th className="text-right">Netto</th>
-                        <th className="text-right">Brutto</th>
+                        {!KLEINUNTERNEHMER && <th className="text-right">Netto</th>}
+                        <th className="text-right">{KLEINUNTERNEHMER ? 'Umsatz' : 'Brutto'}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -591,7 +686,7 @@ const loadData = () => {
                         <tr key={d.date} className="border-b dark:border-zinc-800 text-sm">
                           <td className="py-2.5 font-mono text-xs">{safeFormatDate(d.date)}</td>
                           <td className="text-right tabular-nums text-gray-500">{d.count}</td>
-                          <td className="text-right tabular-nums text-gray-500">{euro(d.netto)}</td>
+                          {!KLEINUNTERNEHMER && <td className="text-right tabular-nums text-gray-500">{euro(d.netto)}</td>}
                           <td className="text-right font-bold text-[#D31329] tabular-nums">{euro(d.brutto)}</td>
                         </tr>
                       ))}
@@ -836,7 +931,17 @@ const loadData = () => {
                             </>
                           ) : (
                             <>
-                              <td className="py-2.5 font-bold text-sm text-gray-800 dark:text-zinc-100">{p.name}</td>
+                              <td className="py-2.5 font-bold text-sm text-gray-800 dark:text-zinc-100">
+                                {p.name}
+                                {isDuplicate(p) && (
+                                  <span
+                                    title="Es gibt ein weiteres Produkt mit gleichem Namen"
+                                    className="ml-2 align-middle text-[10px] font-bold text-amber-700 bg-amber-500/15 px-2 py-0.5 rounded-full uppercase tracking-wide"
+                                  >
+                                    doppelt?
+                                  </span>
+                                )}
+                              </td>
                               <td className="py-2.5"><span className="text-[10px] font-bold text-gray-400 bg-gray-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full uppercase">{p.group}</span></td>
                               <td className="py-2.5 text-center font-mono text-xs text-gray-500">{p.vatRate}%</td>
                               <td className="py-2.5 text-right font-bold text-sm text-[#D31329]">{p.basePrice.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</td>
@@ -893,6 +998,11 @@ const loadData = () => {
                     </div>
                     <div>
                       <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">Mehrwertsteuer</label>
+                      {KLEINUNTERNEHMER && (
+                        <p className="text-[10px] text-gray-400 dark:text-zinc-500 leading-snug mb-1.5">
+                          Derzeit ohne Wirkung (§ 19 UStG). Wird nur gebraucht, falls die Regelung einmal wegfällt.
+                        </p>
+                      )}
                       <select name="pvat" className="w-full px-3 py-2.5 rounded-xl border dark:border-zinc-800 bg-white dark:bg-zinc-900 text-gray-800 dark:text-zinc-100 font-medium focus:ring-2 focus:ring-[#D31329]/20 focus:border-[#D31329] outline-none text-sm">
                         <option value={7}>7% (Lebensmittel)</option>
                         <option value={19}>19% (Zubehör)</option>
@@ -961,25 +1071,37 @@ const loadData = () => {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md p-4">
             <div className="bg-white/95 dark:bg-zinc-950/95 max-w-sm w-full rounded-3xl p-8 shadow-2xl border border-white/20 dark:border-zinc-800/50 relative text-center">
               <span className="text-4xl mb-4 block">📦</span>
-              <h3 className="text-lg font-bold text-[#D31329] tracking-tight">Produkt aus dem Sortiment nehmen?</h3>
+              <h3 className="text-lg font-bold text-[#D31329] tracking-tight">Produkt entfernen?</h3>
               <p className="text-sm text-gray-500 dark:text-zinc-400 mt-3 leading-relaxed">
                 <span className="font-bold text-gray-800 dark:text-zinc-100">&bdquo;{productToDelete?.name}&ldquo;</span> verschwindet
-                aus der Kasse und aus diesem Verzeichnis. Der Datensatz selbst bleibt erhalten,
-                damit die bisherigen Verkäufe nachvollziehbar bleiben.
+                in beiden Fällen aus der Kasse und aus diesem Verzeichnis.
               </p>
               <div className="h-px w-full bg-gray-200/50 dark:bg-zinc-800/50 my-6" />
-              <div className="flex gap-4">
-                <button 
+              <div className="flex flex-col gap-3 text-left">
+                <button
+                  onClick={() => confirmDeleteProduct(false)}
+                  className="w-full py-3 bg-[#D31329] hover:bg-[#b01020] text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-all active:scale-95"
+                >
+                  Aus dem Sortiment nehmen
+                </button>
+                <p className="text-[11px] text-gray-400 dark:text-zinc-500 leading-snug -mt-1 px-1">
+                  Der Normalfall. Der Datensatz bleibt erhalten, bisherige Verkäufe bleiben nachvollziehbar.
+                </p>
+                <button
+                  onClick={() => confirmDeleteProduct(true)}
+                  className="w-full py-3 bg-white dark:bg-zinc-900 border border-[#D31329]/40 text-[#D31329] hover:bg-red-50 dark:hover:bg-red-950/20 font-bold rounded-xl text-xs uppercase tracking-wider transition-all active:scale-95"
+                >
+                  Endgültig löschen
+                </button>
+                <p className="text-[11px] text-gray-400 dark:text-zinc-500 leading-snug -mt-1 px-1">
+                  Nur für versehentlich angelegte Dubletten. Geht nur, wenn das Produkt noch nie verkauft
+                  wurde, und lässt sich nicht rückgängig machen.
+                </p>
+                <button
                   onClick={() => setShowDeleteModal(false)}
-                  className="w-1/2 py-3 bg-gray-100 dark:bg-zinc-850 text-gray-600 dark:text-zinc-300 font-bold rounded-xl text-xs uppercase tracking-wider transition-all"
+                  className="w-full py-3 mt-1 bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-zinc-300 font-bold rounded-xl text-xs uppercase tracking-wider transition-all"
                 >
                   Abbrechen
-                </button>
-                <button 
-                  onClick={confirmDeleteProduct}
-                  className="w-1/2 py-3 bg-[#D31329] hover:bg-[#b01020] text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-all"
-                >
-                  Entfernen
                 </button>
               </div>
             </div>

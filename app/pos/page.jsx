@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import SiteFooter from '../components/SiteFooter';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { KLEINUNTERNEHMER, KLEINUNTERNEHMER_HINWEIS } from '@/lib/tax';
 import {
   readCachedProducts,
   writeCachedProducts,
@@ -25,6 +26,10 @@ const SPLASH_MAX_MS = 6000;
 
 // Zwei Tipps auf dieselbe Kachel innerhalb dieser Zeitspanne zählen als einer.
 const DOPPELTIPP_MS = 350;
+
+// So oft holt die Kasse im Hintergrund den aktuellen Artikelstand, damit neue
+// Produkte und Preisänderungen aus der Systemsteuerung ohne Neustart ankommen.
+const PRODUKT_REFRESH_MS = 2 * 60 * 1000;
 
 const euro = (value) =>
   (Number.isFinite(value) ? value : 0).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
@@ -224,6 +229,20 @@ export default function PosInterface() {
     }, 20000);
     return () => clearInterval(timer);
   }, [pendingCount]);
+
+  // Artikelstand regelmäßig und beim Zurückwechseln in die App auffrischen
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const refresh = () => {
+      if (navigator.onLine && document.visibilityState === 'visible') loadData();
+    };
+    const timer = setInterval(refresh, PRODUKT_REFRESH_MS);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, []);
 
   // Verbindungsstatus verfolgen und bei Rückkehr des Netzes nachladen
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -875,14 +894,21 @@ export default function PosInterface() {
               <div className="flex flex-col gap-4 font-mono text-sm text-gray-700">
                 <div className="flex justify-between border-b pb-2 text-xs text-gray-400 font-sans font-bold uppercase"><span>Posten</span><span>Summe</span></div>
                 <div className="flex justify-between"><span>Bediente Belege:</span><span className="font-bold">{reportData.count} Bons</span></div>
-                <div className="flex justify-between"><span>Umsatz (Brutto):</span><span className="font-bold">{reportData.brutto.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span></div>
-                <div className="flex justify-between text-xs text-gray-400 pl-4"><span>dav. MwSt 7%:</span><span>{euro(reportData.vat7)}</span></div>
-                <div className="flex justify-between text-xs text-gray-400 pl-4"><span>dav. MwSt 19%:</span><span>{euro(reportData.vat19)}</span></div>
-                {reportData.vatOther > 0 && (
-                  <div className="flex justify-between text-xs text-gray-400 pl-4"><span>dav. MwSt sonstige:</span><span>{euro(reportData.vatOther)}</span></div>
+                <div className="flex justify-between"><span>{KLEINUNTERNEHMER ? 'Umsatz:' : 'Umsatz (Brutto):'}</span><span className="font-bold">{euro(reportData.brutto)}</span></div>
+                {!KLEINUNTERNEHMER && (
+                  <>
+                    <div className="flex justify-between text-xs text-gray-400 pl-4"><span>dav. MwSt 7%:</span><span>{euro(reportData.vat7)}</span></div>
+                    <div className="flex justify-between text-xs text-gray-400 pl-4"><span>dav. MwSt 19%:</span><span>{euro(reportData.vat19)}</span></div>
+                    {reportData.vatOther > 0 && (
+                      <div className="flex justify-between text-xs text-gray-400 pl-4"><span>dav. MwSt sonstige:</span><span>{euro(reportData.vatOther)}</span></div>
+                    )}
+                    <div className="flex justify-between border-t pt-2"><span>Umsatz (Netto):</span><span className="font-bold">{euro(reportData.netto)}</span></div>
+                  </>
                 )}
-                <div className="flex justify-between border-t pt-2"><span>Umsatz (Netto):</span><span className="font-bold">{reportData.netto.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span></div>
-                <div className="flex justify-between border-t-2 border-dashed border-gray-300 pt-4 text-base font-bold text-[#0D2B45] font-sans"><span>Soll-Bargeld:</span><span>{reportData.brutto.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span></div>
+                <div className="flex justify-between border-t-2 border-dashed border-gray-300 pt-4 text-base font-bold text-[#0D2B45] font-sans"><span>Soll-Bargeld:</span><span>{euro(reportData.brutto)}</span></div>
+                {KLEINUNTERNEHMER && (
+                  <p className="text-[10px] text-gray-400 font-sans text-center pt-1">{KLEINUNTERNEHMER_HINWEIS}</p>
+                )}
               </div>
               <div className="mt-8 border-t pt-6 flex flex-col gap-3 font-sans">
                 <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
