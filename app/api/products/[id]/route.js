@@ -37,7 +37,31 @@ export async function DELETE(req, { params }) {
   try {
     await dbConnect();
     const Product = mongoose.models.Product;
+    const Sale = mongoose.models.Sale;
     const { id } = await params;
+    const endgueltig = new URL(req.url).searchParams.get('endgueltig') === '1';
+
+    if (endgueltig) {
+      // Endgültig gelöscht werden darf nur, was nie verkauft wurde - typischerweise
+      // ein versehentlich doppelt angelegter Artikel. Sobald ein Beleg auf das
+      // Produkt verweist, bleibt der Datensatz für die Nachvollziehbarkeit erhalten.
+      const verkauft = await Sale.countDocuments({ 'items.productId': id });
+      if (verkauft > 0) {
+        return NextResponse.json(
+          {
+            error: `Dieses Produkt steht auf ${verkauft} ${verkauft === 1 ? 'Beleg' : 'Belegen'} und kann deshalb nur aus dem Sortiment genommen werden.`,
+            soldCount: verkauft
+          },
+          { status: 409 }
+        );
+      }
+
+      const geloescht = await Product.findByIdAndDelete(id);
+      if (!geloescht) {
+        return NextResponse.json({ error: 'Produkt nicht gefunden' }, { status: 404 });
+      }
+      return NextResponse.json({ success: true, deleted: true });
+    }
 
     // Kein echtes Löschen: Der Datensatz bleibt erhalten und wird nur inaktiv
     // gesetzt. GET /api/products filtert ohnehin auf active != false, der
