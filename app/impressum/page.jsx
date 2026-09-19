@@ -9,13 +9,7 @@ export const metadata = {
 export default function ImpressumPage() {
   return (
     <LegalPage title="Impressum" subtitle="Angaben gemäß § 5 DDG">
-      <div className="bg-[#F2B600]/10 border border-[#F2B600]/30 rounded-2xl px-5 py-4">
-        <p className="text-xs font-bold text-[#8A6200] uppercase tracking-wider mb-1">Noch auszufüllen</p>
-        <p className="text-sm text-[#8A6200]/90 leading-relaxed">
-          Alle gelb hinterlegten Felder sind Platzhalter. Bitte durch die tatsächlichen Angaben
-          ersetzen, bevor die Seite öffentlich erreichbar ist.
-        </p>
-      </div>
+      
 
       <Section heading="Diensteanbieter">
         <p>Schülerfirma Weltladen St. Ursula</p>
@@ -30,8 +24,8 @@ export default function ImpressumPage() {
       </Section>
 
       <Section heading="Kontakt">
-        <p>Telefon: <Platzhalter>Telefonnummer</Platzhalter></p>
-        <p>E-Mail: <Platzhalter>E-Mail-Adresse</Platzhalter></p>
+        <p>Telefon: +49 179 4328302</p>
+        <p>E-Mail:jill@hils-vs.de</p>
       </Section>
 
       <Section heading="Verantwortlich für den Inhalt">

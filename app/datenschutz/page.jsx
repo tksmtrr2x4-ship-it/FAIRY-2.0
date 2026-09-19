@@ -9,21 +9,15 @@ export const metadata = {
 export default function DatenschutzPage() {
   return (
     <LegalPage title="Datenschutzerklärung" subtitle="Kassensystem Weltladen St. Ursula">
-      <div className="bg-[#F2B600]/10 border border-[#F2B600]/30 rounded-2xl px-5 py-4">
-        <p className="text-xs font-bold text-[#8A6200] uppercase tracking-wider mb-1">Noch auszufüllen</p>
-        <p className="text-sm text-[#8A6200]/90 leading-relaxed">
-          Die gelb hinterlegten Felder sind Platzhalter. Bitte vor der Veröffentlichung durch die
-          tatsächlichen Angaben ersetzen und den Text gegenprüfen lassen.
-        </p>
-      </div>
+      
 
       <Section heading="Verantwortliche Stelle">
         <p>
           Schülerfirma Weltladen St. Ursula, St. Ursula Schulen Villingen,
-          {' '}<Platzhalter>Anschrift</Platzhalter>, E-Mail <Platzhalter>E-Mail-Adresse</Platzhalter>.
+          {' '}Bickenstrße 25 78050 Villingen-Schwenningen, E-Mail jill@hils-vs.de.
         </p>
         <p>
-          Datenschutzbeauftragte Person: <Platzhalter>Name und Kontakt, falls benannt</Platzhalter>
+          Datenschutzbeauftragte Person: Jill M. Hils, jill@hils-vs.de.
         </p>
       </Section>
 
@@ -74,28 +68,12 @@ export default function DatenschutzPage() {
         </p>
       </Section>
 
-      <Section heading="Speicherdauer">
-        <p>
-          Verkaufsdaten werden für die Dauer der gesetzlichen Aufbewahrungsfristen gespeichert
-          (<Platzhalter>Frist prüfen, in der Regel sechs bis zehn Jahre</Platzhalter>).
-          Server-Protokolle werden nach kurzer Zeit automatisch gelöscht.
-        </p>
-      </Section>
+      
 
-      <Section heading="Ihre Rechte">
-        <p>
-          Sie haben das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung,
-          Datenübertragbarkeit und Widerspruch. Wenden Sie sich dafür an die oben genannte
-          verantwortliche Stelle.
-        </p>
-        <p>
-          Außerdem können Sie sich bei einer Datenschutz-Aufsichtsbehörde beschweren, für
-          Baden-Württemberg beim Landesbeauftragten für den Datenschutz und die Informationsfreiheit.
-        </p>
-      </Section>
+      
 
       <Section heading="Stand">
-        <p><Platzhalter>Datum der letzten Aktualisierung</Platzhalter></p>
+        <p>19.09.2026, 18:17 Uhr</p>
       </Section>
     </LegalPage>
   );
