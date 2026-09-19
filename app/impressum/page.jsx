@@ -20,13 +20,13 @@ export default function ImpressumPage() {
       <Section heading="Diensteanbieter">
         <p>Schülerfirma Weltladen St. Ursula</p>
         <p>St. Ursula Schulen Villingen</p>
-        <p><Platzhalter>Straße und Hausnummer</Platzhalter></p>
-        <p><Platzhalter>PLZ</Platzhalter> Villingen-Schwenningen</p>
+        <p>Bickenstraße 25</p>
+        <p>78050 Villingen-Schwenningen</p>
       </Section>
 
       <Section heading="Vertreten durch">
-        <p><Platzhalter>Name der Schulleitung bzw. des Trägers</Platzhalter></p>
-        <p>Betreuende Lehrkraft der Schülerfirma: <Platzhalter>Name</Platzhalter></p>
+        <p>Dr. Christoph Käfer</p>
+        <p>Betreuende Lehrkraft der Schülerfirma: Friederike Auer</p>
       </Section>
 
       <Section heading="Kontakt">
@@ -35,20 +35,17 @@ export default function ImpressumPage() {
       </Section>
 
       <Section heading="Verantwortlich für den Inhalt">
-        <p><Platzhalter>Name und Anschrift der verantwortlichen Person</Platzhalter></p>
+        <p>Jill M. Hils</p>
       </Section>
 
       <Section heading="Rechtsform und Registereintrag">
         <p>
           Die Schülerfirma ist ein pädagogisches Projekt der St. Ursula Schulen Villingen und kein
-          eigenständiges Unternehmen. <Platzhalter>Falls abweichend: Rechtsform, Register und Registernummer ergänzen</Platzhalter>
+          eigenständiges Unternehmen. 
         </p>
       </Section>
 
-      <Section heading="Umsatzsteuer-Identifikationsnummer">
-        <p><Platzhalter>USt-IdNr., falls vorhanden – sonst diesen Abschnitt streichen</Platzhalter></p>
-      </Section>
-
+    
       <Section heading="Streitbeilegung">
         <p>
           Wir sind weder verpflichtet noch bereit, an einem Streitbeilegungsverfahren vor einer
@@ -59,7 +56,7 @@ export default function ImpressumPage() {
       <Section heading="Software">
         <p>
           Das Kassensystem wurde entwickelt von Jill Manuel Hils. Fragen zur Technik richten Sie
-          bitte an <Platzhalter>Kontaktadresse für technische Rückfragen</Platzhalter>.
+          bitte an die in der Verkäuferansicht hinterlegte Telefonnummer.
         </p>
       </Section>
     </LegalPage>
