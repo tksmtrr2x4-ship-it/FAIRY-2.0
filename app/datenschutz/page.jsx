@@ -11,16 +11,7 @@ export default function DatenschutzPage() {
     <LegalPage title="Datenschutzerklärung" subtitle="Kassensystem Weltladen St. Ursula">
       
 
-      <Section heading="Verantwortliche Stelle">
-        <p>
-          Schülerfirma Weltladen St. Ursula, St. Ursula Schulen Villingen,
-          {' '}Bickenstrße 25 78050 Villingen-Schwenningen, E-Mail jill@hils-vs.de.
-        </p>
-        <p>
-          Datenschutzbeauftragte Person: Jill M. Hils, jill@hils-vs.de.
-        </p>
-      </Section>
-
+      
       <Section heading="Worum es hier geht">
         <p>
           Dieses Kassensystem dient ausschließlich dem Verkauf im Schul-Weltladen. Beim Einkauf
@@ -49,24 +40,7 @@ export default function DatenschutzPage() {
         </ul>
       </Section>
 
-      <Section heading="Speicherung im Browser">
-        <p>
-          Damit die Kasse auch bei schwachem WLAN zuverlässig arbeitet, legt die Anwendung Daten im
-          lokalen Speicher des verwendeten Geräts ab: die Produktliste, noch nicht übertragene
-          Verkäufe sowie die gewählte Ansicht. Diese Daten verbleiben auf dem Gerät, werden nicht
-          zu Werbezwecken genutzt und lassen sich über die Browsereinstellungen löschen.
-          Ein Tracking oder eine Reichweitenmessung findet nicht statt.
-        </p>
-      </Section>
-
-      <Section heading="Hosting und Datenbank">
-        <p>
-          Die Anwendung wird bei <Platzhalter>Hosting-Anbieter, derzeit Vercel Inc.</Platzhalter> betrieben,
-          die Verkaufsdaten liegen in einer Datenbank bei <Platzhalter>Datenbank-Anbieter, derzeit MongoDB Atlas</Platzhalter>.
-          Mit diesen Dienstleistern besteht ein Vertrag zur Auftragsverarbeitung.
-          {' '}<Platzhalter>Serverstandort und Vertragsstand bitte prüfen und ergänzen</Platzhalter>
-        </p>
-      </Section>
+      
 
       
 
