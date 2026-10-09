@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import SiteFooter from '../components/SiteFooter';
+import Systemzustand from '../components/Systemzustand';
 import { KLEINUNTERNEHMER, KLEINUNTERNEHMER_HINWEIS } from '@/lib/tax';
 
 const ResponsiveContainer = dynamic(() => import('recharts').then((mod) => mod.ResponsiveContainer), { ssr: false });
@@ -527,6 +528,8 @@ const loadData = () => {
               </div>
             </div>
           )}
+
+          <Systemzustand maintenanceActive={maintenanceActive} />
 
           {/* KPI Dashboard */}
           <div className="grid grid-cols-3 gap-6 mb-8">
